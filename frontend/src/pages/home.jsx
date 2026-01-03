@@ -8,69 +8,70 @@ import { AuthContext } from '../contexts/AuthContext';
 
 function HomeComponent() {
 
-
-    let navigate = useNavigate();
+    const navigate = useNavigate();
     const [meetingCode, setMeetingCode] = useState("");
+    const { addToUserHistory } = useContext(AuthContext);
 
-
-    const {addToUserHistory} = useContext(AuthContext);
-    let handleJoinVideoCall = async () => {
-        await addToUserHistory(meetingCode)
-        navigate(`/${meetingCode}`)
-    }
+    const handleJoinVideoCall = async () => {
+        if (!meetingCode) return;
+        await addToUserHistory(meetingCode);
+        navigate(`/${meetingCode}`);
+    };
 
     return (
         <>
-
+            {/* NAVBAR */}
             <div className="navBar">
+                <h2 className="logo">SMARTCON</h2>
 
-                <div style={{ display: "flex", alignItems: "center" }}>
-
-                    <h2>Apna Video Call</h2>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center" }}>
-                    <IconButton onClick={
-                        () => {
-                            navigate("/history")
-                        }
-                    }>
+                <div className="navActions">
+                    <IconButton onClick={() => navigate("/history")} color="inherit">
                         <RestoreIcon />
                     </IconButton>
-                    <p>History</p>
+                    <span className="historyText">History</span>
 
-                    <Button onClick={() => {
-                        localStorage.removeItem("token")
-                        navigate("/auth")
-                    }}>
+                    <Button
+                        className="logoutBtn"
+                        onClick={() => {
+                            localStorage.removeItem("token");
+                            navigate("/auth");
+                        }}
+                    >
                         Logout
                     </Button>
                 </div>
-
-
             </div>
 
-
+            {/* MAIN SECTION */}
             <div className="meetContainer">
                 <div className="leftPanel">
-                    <div>
-                        <h2>Providing Quality Video Call Just Like Quality Education</h2>
+                    <h1>Smart Video Conferencing</h1>
+                    <p>Connect. Collaborate. Communicate — smarter.</p>
 
-                        <div style={{ display: 'flex', gap: "10px" }}>
-
-                            <TextField onChange={e => setMeetingCode(e.target.value)} id="outlined-basic" label="Meeting Code" variant="outlined" />
-                            <Button onClick={handleJoinVideoCall} variant='contained'>Join</Button>
-
-                        </div>
+                    <div className="joinBox">
+                        <TextField
+                            label="Enter Meeting Code"
+                            variant="outlined"
+                            fullWidth
+                            onChange={e => setMeetingCode(e.target.value)}
+                            InputProps={{ style: { color: "white" } }}
+                        />
+                        <Button
+                            variant="contained"
+                            className="joinBtn"
+                            onClick={handleJoinVideoCall}
+                        >
+                            Join Meeting
+                        </Button>
                     </div>
                 </div>
-                <div className='rightPanel'>
-                    <img srcSet='/logo3.png' alt="" />
+
+                <div className="rightPanel">
+                    <img src="/logo3.png" alt="SMARTCON" />
                 </div>
             </div>
         </>
-    )
+    );
 }
 
-
-export default withAuth(HomeComponent)
+export default withAuth(HomeComponent);
