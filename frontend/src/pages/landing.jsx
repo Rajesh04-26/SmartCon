@@ -39,11 +39,10 @@ export default function LandingPage() {
                         <Link to={"/auth"}>Get Started</Link>
                     </div>
                 </div>
-                <div>
+                <div className="landingImage slideFromLeft">
+  <img src="/mobile.png" alt="SMARTCON Preview" />
+</div>
 
-                    <img src="/mobile.png" alt="" />
-
-                </div>
             </div>
 
 

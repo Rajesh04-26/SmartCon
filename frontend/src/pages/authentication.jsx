@@ -71,19 +71,46 @@ export default function Authentication() {
             <Grid container component="main" sx={{ height: '100vh' }}>
                 <CssBaseline />
                 <Grid
-                    item
-                    xs={false}
-                    sm={4}
-                    md={7}
-                    sx={{
-                        backgroundImage: 'url(https://source.unsplash.com/random?wallpapers)',
-                        backgroundRepeat: 'no-repeat',
-                        backgroundColor: (t) =>
-                            t.palette.mode === 'light' ? t.palette.grey[50] : t.palette.grey[900],
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                    }}
-                />
+  item
+  xs={false}
+  sm={4}
+  md={7}
+  sx={{
+    backgroundColor: "#f8fafc",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    overflow: "hidden",
+  }}
+>
+  <Box
+    sx={{
+      textAlign: "center",
+      animation: "fadeSlide 1.2s ease",
+    }}
+  >
+    <img
+      src="/mobile.png"
+      alt="meeting preview"
+      className="authAnimatedImage"
+    />
+
+    <Typography
+      variant="h4"
+      sx={{ mt: 3, fontWeight: 700, color: "#0f172a" }}
+    >
+      Meet Smarter with SMARTCON
+    </Typography>
+
+    <Typography
+      sx={{ mt: 1, color: "#475569", maxWidth: 420 }}
+    >
+      Simple. Secure. Seamless video meetings for everyone.
+    </Typography>
+  </Box>
+</Grid>
+
                 <Grid item xs={12} sm={8} md={5} component={Paper} elevation={6} square>
                     <Box
                         sx={{
