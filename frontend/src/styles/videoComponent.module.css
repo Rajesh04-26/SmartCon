@@ -39,14 +39,13 @@ body {
    3. REMOTE VIDEO (Full Screen / "Real World")
    ========================================= */
 .conferenceView {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
-  padding: 0;
-  margin: 0;
-  z-index: 1; /* Bottom Layer */
+  height: 100vh;
+  background: black;
+  z-index: 1; /* ← keeps it BELOW buttons (z-index: 100) */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -358,4 +357,102 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+.raiseHandPopup {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: black;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 10px;
+    z-index: 9999; /* VERY IMPORTANT */
+}
+.reactionContainer {
+    position: absolute;
+    bottom: 120px;
+    right: 20px;
+}
+
+.emoji {
+    font-size: 30px;
+    animation: floatUp 2s ease-out;
+}
+
+@keyframes floatUp {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-100px);
+        opacity: 0;
+    }
+}
+.reactionPopup {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e1e1e;
+    padding: 10px 15px;
+    border-radius: 25px;
+    display: flex;
+    gap: 15px;
+    z-index: 999;
+}
+
+.reactionPopup span {
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.reactionPopup span:hover {
+    transform: scale(1.3);
+}
+.videoWrapper {
+    position: relative;
+}
+
+.emoji {
+    font-size: 24px;
+    animation: floatUp 2s ease-out;
+}
+
+.mainVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* PIP small video */
+.pipContainer {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 220px;
+    height: 150px;
+    z-index: 10;
+}
+
+.pipVideo {
+    width: 100%;
+    height: 100%;
+    border-radius: 10px;
+    object-fit: cover;
+    cursor: pointer;
+}
+
+/* Reaction overlay */
+.reactionOverlay {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+}
+
+.emoji {
+    font-size: 24px;
+    margin-right: 5px;
 }

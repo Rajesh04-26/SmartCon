@@ -35,24 +35,27 @@ export default function VideoMeetComponent() {
     let [video, setVideo] = useState([]);
     let [audio, setAudio] = useState();
     let [screen, setScreen] = useState();
-    let [showModal, setModal] = useState(true);
+    let [showModal, setModal] = useState(false);
     let [screenAvailable, setScreenAvailable] = useState();
     let [messages, setMessages] = useState([])
     let [message, setMessage] = useState("");
     let [newMessages, setNewMessages] = useState(3);
     let [askForUsername, setAskForUsername] = useState(true);
     let [username, setUsername] = useState("");
-    
+    // 🔥 NEW FEATURES STATE
+let [reactions, setReactions] = useState([]);
+let [showReactions, setShowReactions] = useState(false);
     // NEW STATE FOR SWAPPING
     let [videoSwap, setVideoSwap] = useState(false);
-
+let mainVideoRef = useRef();
+let pipVideoRef = useRef();
     const videoRef = useRef([])
     let [videos, setVideos] = useState([])
-
-    useEffect(() => {
-        console.log("HELLO")
-        getPermissions();
-    })
+let [localStreamState, setLocalStreamState] = useState(null);
+useEffect(() => {
+    console.log("HELLO")
+    getPermissions();
+}, []);
 
     let getDislayMedia = () => {
         if (screen) {
@@ -95,6 +98,7 @@ export default function VideoMeetComponent() {
                 const userMediaStream = await navigator.mediaDevices.getUserMedia({ video: videoAvailable, audio: audioAvailable });
                 if (userMediaStream) {
                     window.localStream = userMediaStream;
+setLocalStreamState(userMediaStream); // 🔥 IMPORTANT
                     if (localVideoref.current) {
                         localVideoref.current.srcObject = userMediaStream;
                     }
@@ -123,7 +127,8 @@ export default function VideoMeetComponent() {
             window.localStream.getTracks().forEach(track => track.stop())
         } catch (e) { console.log(e) }
 
-        window.localStream = stream
+        window.localStream = stream;
+setLocalStreamState(stream); // 🔥 IMPORTANT
         // We update the ref, but rendering handles the srcObject via callback refs now
         if(localVideoref.current) localVideoref.current.srcObject = stream
 
@@ -244,8 +249,26 @@ export default function VideoMeetComponent() {
     let connectToSocketServer = () => {
         socketRef.current = io.connect(server_url, { secure: false })
         socketRef.current.on('signal', gotMessageFromServer)
-        socketRef.current.on('connect', () => {
-            socketRef.current.emit('join-call', window.location.href)
+       
+        socketRef.current.on('connect', () => { // ✋ Listen Raise Hand
+            console.log("✅ SOCKET CONNECTED:", socketRef.current.id);
+
+    
+socketIdRef.current = socketRef.current.id
+            socketRef.current.emit('join-call', window.location.pathname)
+           
+// 😀 Listen Reactions
+socketRef.current.on("receive-reaction", (emoji, socketId) => {
+    setReactions(prev => [...prev, { 
+        emoji, 
+        socketId,   // ✅ IMPORTANT
+        id: Date.now() 
+    }]);
+
+    setTimeout(() => {
+        setReactions(prev => prev.slice(1));
+    }, 3000);
+});
             socketIdRef.current = socketRef.current.id
             socketRef.current.on("chat-message", (data, sender) => {
     addMessage(data, sender);
@@ -376,7 +399,25 @@ export default function VideoMeetComponent() {
         socketRef.current.emit('chat-message', message, username)
         setMessage("");
     }
+// ✋ Raise Hand
 
+
+// 😀 Emoji Reaction
+let sendReaction = (emoji) => {
+    socketRef.current.emit("send-reaction", emoji, username);
+
+    setReactions(prev => [...prev, { 
+        emoji, 
+        socketId: socketIdRef.current,  // ✅ IMPORTANT
+        id: Date.now() 
+    }]);
+
+    setShowReactions(false);
+
+    setTimeout(() => {
+        setReactions(prev => prev.slice(1));
+    }, 3000);
+};
     let connect = () => {
         setAskForUsername(false);
         getMedia();
@@ -388,11 +429,26 @@ export default function VideoMeetComponent() {
     
     // We default the main view to the first remote video found.
     // If no remote video, we can show local or black.
-    const mainStream = videoSwap ? window.localStream : (videos.length > 0 ? videos[0].stream : null);
-    
-    // The PIP view is the opposite.
-    const pipStream = videoSwap ? (videos.length > 0 ? videos[0].stream : null) : window.localStream;
+    const hasRemote = videos.length > 0;
 
+// MAIN VIDEO
+const mainStream = videoSwap
+  ? localStreamState
+  : (hasRemote ? videos[0].stream : null);
+
+// PIP VIDEO
+const pipStream = videoSwap
+  ? (hasRemote ? videos[0].stream : localStreamState)
+  : localStreamState;
+useEffect(() => {
+    if (pipVideoRef.current) {
+        pipVideoRef.current.srcObject = pipStream || window.localStream || null;
+    }
+
+    if (mainVideoRef.current) {
+        mainVideoRef.current.srcObject = mainStream || null;
+    }
+}, [localStreamState, videos, videoSwap]);
     return (
         <div>
            {askForUsername === true ?
@@ -464,6 +520,14 @@ export default function VideoMeetComponent() {
 
                     {/* CONTROLS */}
                     <div className={styles.buttonContainers}>
+                       
+                        {/* ✋ Raise Hand */}
+
+{/* 😀 Emoji Buttons */}
+<IconButton onClick={() => setShowReactions(!showReactions)} style={{ color: "white" }}>
+    😀
+</IconButton>
+
                         <IconButton onClick={handleVideo} style={{ color: "white" }}>
                             {(video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
                         </IconButton>
@@ -484,7 +548,14 @@ export default function VideoMeetComponent() {
                             </IconButton>
                         </Badge>
                     </div>
-
+ {showReactions && (
+    <div className={styles.reactionPopup}>
+        <span onClick={() => sendReaction("👍")}>👍</span>
+        <span onClick={() => sendReaction("😂")}>😂</span>
+        <span onClick={() => sendReaction("👏")}>👏</span>
+        <span onClick={() => sendReaction("❤️")}>❤️</span>
+    </div>
+)}
                     {/* =========================================================
                         VIDEO AREA - LOGIC FOR SWAPPING
                        ========================================================= */}
@@ -492,33 +563,60 @@ export default function VideoMeetComponent() {
                     {/* 1. PIP VIDEO (The Draggable/Small Video) 
                         Added onClick to toggle the swap state
                     */}
-                    <video 
-                        className={styles.meetUserVideo} 
-                        onClick={() => setVideoSwap(!videoSwap)}
-                        ref={ref => {
-                            if (ref) ref.srcObject = pipStream;
-                        }} 
-                        autoPlay 
-                        muted // Always mute PIP if it's local stream to prevent echo
-                    ></video>
-
+                       
+                       
                     {/* 2. MAIN FULL SCREEN VIDEO 
                         We only render the first stream found for full screen context
                         If you have multiple people, you might want to click them in a list to swap.
                     */}
-                    <div className={styles.conferenceView}>
-                        <video
-                            style={{ width: '100%', height: '100%', objectFit: "cover" }}
-                            ref={ref => {
-                                if (ref) ref.srcObject = mainStream;
-                            }}
-                            autoPlay
-                            // Mute if the main stream is local (videoSwap is true)
-                            muted={videoSwap} 
-                        ></video>
-                    </div>
+       {/* MAIN VIDEO (FULL SCREEN) */}
+<div className={styles.conferenceView}>
+    <video
+        ref={mainVideoRef}
+        autoPlay
+        playsInline
+        muted={videoSwap}
+        className={styles.mainVideo}
+    />
+
+    {/* Remote reactions */}
+    <div className={styles.reactionOverlay}>
+        {reactions
+            .filter(r => r.socketId !== socketIdRef.current)
+            .map(r => (
+                <span key={r.id} className={styles.emoji}>
+                    {r.emoji}
+                </span>
+            ))}
+    </div>
+</div>
+
+{/* PIP VIDEO */}
+<div className={styles.pipContainer}>
+    <video
+        ref={pipVideoRef}
+        autoPlay
+        playsInline
+        muted
+        onClick={() => setVideoSwap(!videoSwap)}
+        className={styles.pipVideo}
+    />
+
+    {/* Your reactions */}
+    <div className={styles.reactionOverlay}>
+        {reactions
+            .filter(r => r.socketId === socketIdRef.current)
+            .map(r => (
+                <span key={r.id} className={styles.emoji}>
+                    {r.emoji}
+                </span>
+            ))}
+    </div>
+</div>
                 </div>
             }
+            
+    
         </div>
     )
 }
