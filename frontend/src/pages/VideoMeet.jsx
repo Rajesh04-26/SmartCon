@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useRef, useState } from 'react'
 import io from "socket.io-client";
 import { Badge, IconButton, TextField } from '@mui/material';
@@ -11,7 +13,9 @@ import MicOffIcon from '@mui/icons-material/MicOff'
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
 import ChatIcon from '@mui/icons-material/Chat'
+import PanToolIcon from '@mui/icons-material/PanTool';
 import server from '../environment';
+import ParticipantTile from '../components/ParticipantTile';
 
 const server_url = server;
 
@@ -22,6 +26,12 @@ const peerConfigConnections = {
         { "urls": "stun:stun.l.google.com:19302" }
     ]
 }
+const cameraVideoConstraints = {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    aspectRatio: { ideal: 1.7777777778 },
+    resizeMode: "none"
+};
 
 export default function VideoMeetComponent() {
 
@@ -45,13 +55,13 @@ export default function VideoMeetComponent() {
     // 🔥 NEW FEATURES STATE
 let [reactions, setReactions] = useState([]);
 let [showReactions, setShowReactions] = useState(false);
-    // NEW STATE FOR SWAPPING
-    let [videoSwap, setVideoSwap] = useState(false);
-let mainVideoRef = useRef();
-let pipVideoRef = useRef();
+let [raiseHandAlerts, setRaiseHandAlerts] = useState([]);
+const meetingEmojis = ["😀", "😂", "😍", "😢", "😮", "😡", "👍", "👏", "❤️", "🎉", "🙏", "🔥", "🤝", "🤔", "✅", "👋"];
     const videoRef = useRef([])
     let [videos, setVideos] = useState([])
 let [localStreamState, setLocalStreamState] = useState(null);
+let [participantNames, setParticipantNames] = useState({});
+let [spotlightId, setSpotlightId] = useState(null);
 useEffect(() => {
     console.log("HELLO")
     getPermissions();
@@ -70,7 +80,7 @@ useEffect(() => {
 
     const getPermissions = async () => {
         try {
-            const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
+            const videoPermission = await navigator.mediaDevices.getUserMedia({ video: cameraVideoConstraints });
             if (videoPermission) {
                 setVideoAvailable(true);
                 console.log('Video permission granted');
@@ -95,7 +105,10 @@ useEffect(() => {
             }
 
             if (videoAvailable || audioAvailable) {
-                const userMediaStream = await navigator.mediaDevices.getUserMedia({ video: videoAvailable, audio: audioAvailable });
+                const userMediaStream = await navigator.mediaDevices.getUserMedia({
+                    video: videoAvailable ? cameraVideoConstraints : false,
+                    audio: audioAvailable
+                });
                 if (userMediaStream) {
                     window.localStream = userMediaStream;
 setLocalStreamState(userMediaStream); // 🔥 IMPORTANT
@@ -174,7 +187,10 @@ setLocalStreamState(stream); // 🔥 IMPORTANT
 
     let getUserMedia = () => {
         if ((video && videoAvailable) || (audio && audioAvailable)) {
-            navigator.mediaDevices.getUserMedia({ video: video, audio: audio })
+            navigator.mediaDevices.getUserMedia({
+                video: video ? cameraVideoConstraints : false,
+                audio: audio
+            })
                 .then(getUserMediaSuccess)
                 .then((stream) => { })
                 .catch((e) => console.log(e))
@@ -255,20 +271,37 @@ setLocalStreamState(stream); // 🔥 IMPORTANT
 
     
 socketIdRef.current = socketRef.current.id
-            socketRef.current.emit('join-call', window.location.pathname)
+            socketRef.current.emit('join-call', { path: window.location.pathname, username })
            
 // 😀 Listen Reactions
-socketRef.current.on("receive-reaction", (emoji, socketId) => {
-    setReactions(prev => [...prev, { 
-        emoji, 
-        socketId,   // ✅ IMPORTANT
-        id: Date.now() 
-    }]);
+socketRef.current.on("receive-reaction", (reactionPayload, legacySocketId) => {
+    if (!reactionPayload) return;
+    const normalizedReaction =
+        typeof reactionPayload === "string"
+            ? {
+                  emoji: reactionPayload,
+                  socketId: legacySocketId || "",
+                  senderName: participantNames[legacySocketId] || "Participant",
+                  id: `${legacySocketId || "legacy"}-${Date.now()}`
+              }
+            : reactionPayload;
+
+    setReactions((prev) => [...prev, normalizedReaction]);
 
     setTimeout(() => {
-        setReactions(prev => prev.slice(1));
+        setReactions((prev) => prev.filter((r) => r.id !== normalizedReaction.id));
     }, 3000);
 });
+            socketRef.current.on("participant-name", ({ socketId, username: participantUsername }) => {
+                setParticipantNames((prev) => ({ ...prev, [socketId]: participantUsername || "Participant" }));
+            });
+            socketRef.current.on("receive-raise-hand", (payload) => {
+                if (!payload) return;
+                setRaiseHandAlerts((prev) => [...prev, payload]);
+                setTimeout(() => {
+                    setRaiseHandAlerts((prev) => prev.filter((item) => item.id !== payload.id));
+                }, 3200);
+            });
             socketIdRef.current = socketRef.current.id
             socketRef.current.on("chat-message", (data, sender) => {
     addMessage(data, sender);
@@ -276,6 +309,11 @@ socketRef.current.on("receive-reaction", (emoji, socketId) => {
 
             socketRef.current.on('user-left', (id) => {
                 setVideos((videos) => videos.filter((video) => video.socketId !== id))
+                setParticipantNames((prev) => {
+                    const next = { ...prev };
+                    delete next[id];
+                    return next;
+                });
             })
 
             socketRef.current.on('user-joined', (id, clients) => {
@@ -406,49 +444,87 @@ socketRef.current.on("receive-reaction", (emoji, socketId) => {
 let sendReaction = (emoji) => {
     socketRef.current.emit("send-reaction", emoji, username);
 
-    setReactions(prev => [...prev, { 
+    const localReaction = { 
         emoji, 
-        socketId: socketIdRef.current,  // ✅ IMPORTANT
-        id: Date.now() 
-    }]);
+        socketId: socketIdRef.current,
+        senderName: username || "You",
+        id: `${socketIdRef.current}-${Date.now()}`
+    };
+    setReactions(prev => [...prev, localReaction]);
 
     setShowReactions(false);
 
     setTimeout(() => {
-        setReactions(prev => prev.slice(1));
+        setReactions(prev => prev.filter((r) => r.id !== localReaction.id));
     }, 3000);
+};
+let sendRaiseHand = () => {
+    const handPayload = {
+        socketId: socketIdRef.current,
+        senderName: username || "You",
+        id: `${socketIdRef.current}-hand-${Date.now()}`
+    };
+    socketRef.current.emit("raise-hand", username);
+    setRaiseHandAlerts((prev) => [...prev, handPayload]);
+    setTimeout(() => {
+        setRaiseHandAlerts((prev) => prev.filter((item) => item.id !== handPayload.id));
+    }, 3200);
 };
     let connect = () => {
         setAskForUsername(false);
         getMedia();
     }
 
-    // --- HELPER TO DETERMINE STREAMS FOR SWAPPING ---
-    // If videoSwap is false: Main = Remote[0], PIP = Local
-    // If videoSwap is true:  Main = Local, PIP = Remote[0]
-    
-    // We default the main view to the first remote video found.
-    // If no remote video, we can show local or black.
-    const hasRemote = videos.length > 0;
+    useEffect(() => {
+        return () => {
+            Object.values(connections).forEach((peer) => {
+                try {
+                    peer.close();
+                } catch (e) {
+                    console.log(e);
+                }
+            });
+            connections = {};
+            setVideos([]);
+            setReactions([]);
+            setParticipantNames({});
+            setRaiseHandAlerts([]);
+        };
+    }, []);
 
-// MAIN VIDEO
-const mainStream = videoSwap
-  ? localStreamState
-  : (hasRemote ? videos[0].stream : null);
-
-// PIP VIDEO
-const pipStream = videoSwap
-  ? (hasRemote ? videos[0].stream : localStreamState)
-  : localStreamState;
-useEffect(() => {
-    if (pipVideoRef.current) {
-        pipVideoRef.current.srcObject = pipStream || window.localStream || null;
-    }
-
-    if (mainVideoRef.current) {
-        mainVideoRef.current.srcObject = mainStream || null;
-    }
-}, [localStreamState, videos, videoSwap]);
+    const remoteParticipants = videos.map((videoItem, idx) => ({
+        id: videoItem.socketId,
+        name: participantNames[videoItem.socketId] || `Participant ${idx + 1}`,
+        stream: videoItem.stream,
+        isMuted: false
+    }));
+    const localParticipant = {
+        id: "local",
+        name: `${username || "You"} (You)`,
+        stream: localStreamState || window.localStream || null,
+        isMuted: true
+    };
+    const participants = [localParticipant, ...remoteParticipants];
+    const totalCount = participants.length;
+    const hasOnlyTwo = totalCount === 2;
+    const hasThree = totalCount === 3;
+    const isOddLarge = totalCount > 3 && totalCount % 2 !== 0;
+    const shouldUseGridAll = totalCount >= 4 && totalCount % 2 === 0;
+    const activeSpotlightId = spotlightId || remoteParticipants[0]?.id || "local";
+    const spotlightParticipant =
+        participants.find((p) => p.id === activeSpotlightId) ||
+        remoteParticipants[0] ||
+        localParticipant;
+    const secondaryParticipant =
+        participants.find((p) => p.id !== spotlightParticipant.id) || localParticipant;
+    const bigSplitParticipants = hasThree ? remoteParticipants.slice(0, 2) : [];
+    const oddGridParticipants = isOddLarge ? remoteParticipants : [];
+    useEffect(() => {
+        const validIds = new Set(participants.map((p) => p.id));
+        if (!spotlightId || !validIds.has(spotlightId)) {
+            setSpotlightId(remoteParticipants[0]?.id || "local");
+        }
+    }, [participants, remoteParticipants, spotlightId]);
     return (
         <div>
            {askForUsername === true ?
@@ -496,6 +572,15 @@ useEffect(() => {
 
 
                 <div className={styles.meetVideoContainer}>
+                    {raiseHandAlerts.length > 0 ? (
+                        <div className={styles.raiseHandNoticeStack}>
+                            {raiseHandAlerts.slice(-1).map((item) => (
+                                <div key={item.id} className={styles.raiseHandPopup}>
+                                    ✋ {item.senderName} wants to speak
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
 
                     {/* CHAT OVERLAY */}
                     {showModal ? <div className={styles.chatRoom}>
@@ -512,7 +597,14 @@ useEffect(() => {
                                 }) : <p>No Messages Yet</p>}
                             </div>
                             <div className={styles.chattingArea}>
-                                <TextField value={message} onChange={(e) => setMessage(e.target.value)} id="outlined-basic" label="Enter Your chat" variant="outlined" />
+                                <TextField
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    id="outlined-basic"
+                                    label="Enter your chat"
+                                    placeholder="Type your message here..."
+                                    variant="outlined"
+                                />
                                 <Button variant='contained' onClick={sendMessage}>Send</Button>
                             </div>
                         </div>
@@ -522,6 +614,10 @@ useEffect(() => {
                     <div className={styles.buttonContainers}>
                        
                         {/* ✋ Raise Hand */}
+
+                        <IconButton onClick={sendRaiseHand} style={{ color: "white" }} title="Raise hand">
+                            <PanToolIcon />
+                        </IconButton>
 
 {/* 😀 Emoji Buttons */}
 <IconButton onClick={() => setShowReactions(!showReactions)} style={{ color: "white" }}>
@@ -550,10 +646,11 @@ useEffect(() => {
                     </div>
  {showReactions && (
     <div className={styles.reactionPopup}>
-        <span onClick={() => sendReaction("👍")}>👍</span>
-        <span onClick={() => sendReaction("😂")}>😂</span>
-        <span onClick={() => sendReaction("👏")}>👏</span>
-        <span onClick={() => sendReaction("❤️")}>❤️</span>
+        {meetingEmojis.map((emoji) => (
+            <span key={emoji} onClick={() => sendReaction(emoji)}>
+                {emoji}
+            </span>
+        ))}
     </div>
 )}
                     {/* =========================================================
@@ -570,48 +667,136 @@ useEffect(() => {
                         If you have multiple people, you might want to click them in a list to swap.
                     */}
        {/* MAIN VIDEO (FULL SCREEN) */}
-<div className={styles.conferenceView}>
-    <video
-        ref={mainVideoRef}
-        autoPlay
-        playsInline
-        muted={videoSwap}
-        className={styles.mainVideo}
-    />
+<div className={styles.conferenceViewGrid}>
+    {totalCount === 1 ? (
+        <div className={styles.singleSpotlight}>
+            <ParticipantTile
+                participantId={localParticipant.id}
+                stream={localParticipant.stream}
+                name={localParticipant.name}
+                isMuted
+                reactions={reactions.filter((r) => r.socketId === socketIdRef.current)}
+            />
+        </div>
+    ) : null}
 
-    {/* Remote reactions */}
-    <div className={styles.reactionOverlay}>
-        {reactions
-            .filter(r => r.socketId !== socketIdRef.current)
-            .map(r => (
-                <span key={r.id} className={styles.emoji}>
-                    {r.emoji}
-                </span>
+    {hasOnlyTwo ? (
+        <>
+            <div className={styles.singleSpotlight}>
+                <ParticipantTile
+                    participantId={spotlightParticipant.id}
+                    stream={spotlightParticipant.stream}
+                    name={spotlightParticipant.name}
+                    isMuted={spotlightParticipant.id === "local"}
+                    reactions={reactions.filter((r) =>
+                        spotlightParticipant.id === "local"
+                            ? r.socketId === socketIdRef.current
+                            : r.socketId === spotlightParticipant.id
+                    )}
+                    onClick={() => setSpotlightId(spotlightParticipant.id)}
+                />
+            </div>
+            <div className={styles.bottomPip}>
+                <ParticipantTile
+                    participantId={secondaryParticipant.id}
+                    stream={secondaryParticipant.stream}
+                    name={secondaryParticipant.name}
+                    isMuted={secondaryParticipant.id === "local"}
+                    reactions={reactions.filter((r) =>
+                        secondaryParticipant.id === "local"
+                            ? r.socketId === socketIdRef.current
+                            : r.socketId === secondaryParticipant.id
+                    )}
+                    onClick={() => setSpotlightId(secondaryParticipant.id)}
+                    compact
+                />
+            </div>
+        </>
+    ) : null}
+
+    {hasThree ? (
+        <>
+            <div className={styles.twoUpRow}>
+                {bigSplitParticipants.map((participant) => (
+                    <ParticipantTile
+                        key={participant.id}
+                        participantId={participant.id}
+                        stream={participant.stream}
+                        name={participant.name}
+                        isMuted={false}
+                        reactions={reactions.filter((r) => r.socketId === participant.id)}
+                        onClick={() => setSpotlightId(participant.id)}
+                    />
+                ))}
+            </div>
+            <div className={styles.bottomPip}>
+                <ParticipantTile
+                    participantId={localParticipant.id}
+                    stream={localParticipant.stream}
+                    name={localParticipant.name}
+                    isMuted
+                    reactions={reactions.filter((r) => r.socketId === socketIdRef.current)}
+                    onClick={() => setSpotlightId("local")}
+                    compact
+                />
+            </div>
+        </>
+    ) : null}
+
+    {isOddLarge ? (
+        <>
+            <div
+                className={styles.dynamicGrid}
+                style={{ gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(oddGridParticipants.length || 1))}, minmax(0, 1fr))` }}
+            >
+                {oddGridParticipants.map((participant) => (
+                    <ParticipantTile
+                        key={participant.id}
+                        participantId={participant.id}
+                        stream={participant.stream}
+                        name={participant.name}
+                        isMuted={false}
+                        reactions={reactions.filter((r) => r.socketId === participant.id)}
+                        onClick={() => setSpotlightId(participant.id)}
+                    />
+                ))}
+            </div>
+            <div className={styles.bottomPip}>
+                <ParticipantTile
+                    participantId={localParticipant.id}
+                    stream={localParticipant.stream}
+                    name={localParticipant.name}
+                    isMuted
+                    reactions={reactions.filter((r) => r.socketId === socketIdRef.current)}
+                    onClick={() => setSpotlightId("local")}
+                    compact
+                />
+            </div>
+        </>
+    ) : null}
+
+    {shouldUseGridAll ? (
+        <div
+            className={styles.dynamicGrid}
+            style={{ gridTemplateColumns: `repeat(${Math.ceil(Math.sqrt(participants.length || 1))}, minmax(0, 1fr))` }}
+        >
+            {participants.map((participant) => (
+                <ParticipantTile
+                    key={participant.id}
+                    participantId={participant.id}
+                    stream={participant.stream}
+                    name={participant.name}
+                    isMuted={participant.id === "local"}
+                    reactions={reactions.filter((r) =>
+                        participant.id === "local"
+                            ? r.socketId === socketIdRef.current
+                            : r.socketId === participant.id
+                    )}
+                    onClick={() => setSpotlightId(participant.id)}
+                />
             ))}
-    </div>
-</div>
-
-{/* PIP VIDEO */}
-<div className={styles.pipContainer}>
-    <video
-        ref={pipVideoRef}
-        autoPlay
-        playsInline
-        muted
-        onClick={() => setVideoSwap(!videoSwap)}
-        className={styles.pipVideo}
-    />
-
-    {/* Your reactions */}
-    <div className={styles.reactionOverlay}>
-        {reactions
-            .filter(r => r.socketId === socketIdRef.current)
-            .map(r => (
-                <span key={r.id} className={styles.emoji}>
-                    {r.emoji}
-                </span>
-            ))}
-    </div>
+        </div>
+    ) : null}
 </div>
                 </div>
             }

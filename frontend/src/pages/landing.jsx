@@ -104,9 +104,9 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 className="logo-cloud"
             >
-                <p>POWERING MODERN TEAMS AT</p>
+                <p>"Where ideas meet faces, and teams meet success."</p>
                 <div className="logo-row">
-                    <span>Vercel</span><span>Stripe</span><span>Linear</span><span>GitHub</span><span>Airbnb</span>
+                    <span>HD Video</span><span>Live Chat</span><span>Screen Share</span><span>Meeting History</span><span>Secure Calls</span>
                 </div>
             </motion.div>
 

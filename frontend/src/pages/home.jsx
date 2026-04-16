@@ -2,9 +2,9 @@ import React, { useContext, useState } from 'react'
 import withAuth from '../utils/withAuth'
 import { useNavigate } from 'react-router-dom'
 import "../App.css";
-import { Button, IconButton, TextField } from '@mui/material';
-import RestoreIcon from '@mui/icons-material/Restore';
+import { Button, TextField } from '@mui/material';
 import { AuthContext } from '../contexts/AuthContext';
+import Navbar from '../components/Navbar';
 
 function HomeComponent() {
 
@@ -19,28 +19,8 @@ function HomeComponent() {
     };
 
     return (
-        <>
-            {/* NAVBAR */}
-            <div className="navBar">
-                <h2 className="logo">SMARTCON</h2>
-
-                <div className="navActions">
-                    <IconButton onClick={() => navigate("/history")} color="inherit">
-                        <RestoreIcon />
-                    </IconButton>
-                    <span className="historyText">History</span>
-
-                    <Button
-                        className="logoutBtn"
-                        onClick={() => {
-                            localStorage.removeItem("token");
-                            navigate("/auth");
-                        }}
-                    >
-                        Logout
-                    </Button>
-                </div>
-            </div>
+        <div className="pageWithNavbar">
+            <Navbar />
 
             {/* MAIN SECTION */}
             <div className="meetContainer">
@@ -104,7 +84,7 @@ function HomeComponent() {
                     <img src="/logo3.png" alt="SMARTCON" />
                 </div>
             </div>
-        </>
+        </div>
     );
 }
 
