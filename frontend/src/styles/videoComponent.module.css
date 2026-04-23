@@ -1,16 +1,6 @@
 /* =========================================
    1. VARIABLES & BASICS
    ========================================= */
-:root {
-  --bg-color: #000000;
-  --chat-bg: #111111;
-  --primary: #6366f1;        /* Indigo */
-  --danger: #ef4444;         /* Red for Hangup */
-  --glass-bg: rgba(20, 20, 20, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.15);
-  --text-color: #ffffff;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -18,10 +8,10 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-color);
+  font-family: var(--font-main);
+  background: var(--page-bg);
   overflow: auto;
-  color: var(--text-color);
+  color: var(--text-main);
 }
 
 /* =========================================
@@ -31,7 +21,7 @@ body {
   position: relative;
   height: 100vh;
   width: 100vw;
-  background: var(--bg-color);
+  background: var(--page-bg);
   overflow: hidden;
 }
 
@@ -54,7 +44,7 @@ body {
 .conferenceViewGrid {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: var(--bg-dark);
   z-index: 1;
 }
 
@@ -93,8 +83,8 @@ body {
 
 .participantTile {
   position: relative;
-  background: #111827;
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  background: var(--surface-strong);
+  border: 2px solid var(--glass-border);
   border-radius: 14px;
   overflow: hidden;
   transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
@@ -110,7 +100,7 @@ body {
 }
 
 .activeSpeaker {
-  border-color: #22d3ee;
+  border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35), 0 10px 30px rgba(34, 211, 238, 0.35);
 }
 
@@ -126,7 +116,7 @@ body {
   position: absolute;
   left: 8px;
   bottom: 8px;
-  color: #fff;
+  color: var(--text-main);
   font-size: 0.85rem;
   font-weight: 700;
   background: rgba(0, 0, 0, 0.5);
@@ -151,7 +141,7 @@ body {
   gap: 6px;
   background: rgba(0, 0, 0, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
+  color: var(--text-main);
   border-radius: 999px;
   padding: 3px 8px;
   font-size: 0.8rem;
@@ -180,9 +170,9 @@ body {
   right: 20px;
   width: 200px;  /* Standard mobile-like width */
   aspect-ratio: 9/16; /* Portrait ratio */
-  background: #222;
+  background: var(--surface-strong);
   border-radius: 12px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid var(--glass-border);
   box-shadow: 0 10px 20px rgba(0,0,0,0.5);
   z-index: 50; /* Middle Layer */
   object-fit: cover;
@@ -210,7 +200,7 @@ body {
   gap: 15px;
   
   /* Glass Effect */
-  background: var(--glass-bg);
+  background: var(--surface-strong);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 12px 25px;
@@ -262,8 +252,8 @@ body {
   right: 0;
   height: 100%;
   width: 350px;
-  background-color: var(--chat-bg);
-  color: white;
+  background-color: var(--surface-strong);
+  color: var(--text-main);
 
   z-index: 2000;
 
@@ -273,7 +263,7 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: -10px 0 30px rgba(0,0,0,0.8);
-  border-left: 1px solid #333;
+  border-left: 1px solid var(--glass-border);
 }
 
 
@@ -316,7 +306,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--glass-border);
   padding-top: 15px;
 }
 
@@ -372,10 +362,7 @@ body {
   align-items: center;
   justify-content: center;
 
-  background:
-    radial-gradient(circle at top left, rgba(99,102,241,0.25), transparent 45%),
-    radial-gradient(circle at bottom right, rgba(6,182,212,0.25), transparent 45%),
-    linear-gradient(180deg, #020617, #0f172a);
+  background: var(--page-bg);
 }
 
 /* Glass Card */
@@ -385,11 +372,11 @@ body {
   padding: 40px;
   border-radius: 24px;
 
-  background: rgba(15, 23, 42, 0.85);
+  background: var(--surface-strong);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
   box-shadow: 0 30px 60px rgba(0,0,0,0.6);
 
   display: flex;
@@ -411,28 +398,28 @@ body {
 }
 
 .lobbySubtitle {
-  color: #cbd5f5;
+  color: var(--text-muted);
   font-size: 0.95rem;
   margin-bottom: 10px;
 }
 
 /* MUI TextField Fix */
 .lobbyCard .MuiOutlinedInput-root {
-  background: rgba(2, 6, 23, 0.9);
+  background: var(--surface-soft);
   border-radius: 14px;
-  color: white;
+  color: var(--text-main);
 }
 
 .lobbyCard .MuiInputLabel-root {
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .lobbyCard .MuiOutlinedInput-notchedOutline {
-  border-color: rgba(255,255,255,0.15);
+  border-color: var(--glass-border);
 }
 
 .lobbyCard .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-  border-color: #06b6d4;
+  border-color: var(--accent);
 }
 
 /* Button */
@@ -441,8 +428,8 @@ body {
   height: 50px;
   font-weight: 600 !important;
   border-radius: 14px !important;
-  background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
-  box-shadow: 0 10px 25px rgba(79,70,229,0.5);
+  background: var(--gradient-btn) !important;
+  box-shadow: var(--soft-shadow);
 }
 
 /* Camera Preview */
@@ -451,7 +438,7 @@ body {
   margin-top: 20px;
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
 }
 
 .previewBox video {
@@ -535,7 +522,7 @@ body {
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: #1e1e1e;
+    background: var(--surface-soft);
     padding: 10px 15px;
     border-radius: 25px;
     display: flex;

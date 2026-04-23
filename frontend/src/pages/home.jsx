@@ -19,7 +19,7 @@ function HomeComponent() {
     };
 
     return (
-        <div className="pageWithNavbar">
+        <div className="pageWithNavbar smartconPage">
             <Navbar />
 
             {/* MAIN SECTION */}
@@ -36,22 +36,22 @@ function HomeComponent() {
     value={meetingCode}
     onChange={(e) => setMeetingCode(e.target.value)}
     sx={{
-        input: { color: "#f8fafc" },
-        label: { color: "#94a3b8" },
+        input: { color: "var(--text-main)" },
+        label: { color: "var(--text-muted)" },
         "& label.Mui-focused": {
-            color: "#22d3ee",
+            color: "var(--accent)",
         },
         "& .MuiOutlinedInput-root": {
-            backgroundColor: "rgba(15, 23, 42, 0.8)",
+            backgroundColor: "var(--surface-strong)",
             borderRadius: "12px",
             "& fieldset": {
-                borderColor: "rgba(255,255,255,0.2)",
+                borderColor: "var(--glass-border)",
             },
             "&:hover fieldset": {
-                borderColor: "#6366f1",
+                borderColor: "var(--primary)",
             },
             "&.Mui-focused fieldset": {
-                borderColor: "#22d3ee",
+                borderColor: "var(--accent)",
             },
         },
     }}
@@ -65,12 +65,13 @@ function HomeComponent() {
         py: 1.4,
         fontWeight: 600,
         borderRadius: "999px",
-        background: "linear-gradient(135deg, #4f46e5, #06b6d4)",
-        boxShadow: "0 10px 25px rgba(99,102,241,0.4)",
+        background: "var(--gradient-btn)",
+        boxShadow: "var(--soft-shadow)",
         textTransform: "none",
         "&:hover": {
-            background: "linear-gradient(135deg, #4338ca, #0891b2)",
-            boxShadow: "0 15px 30px rgba(99,102,241,0.6)",
+            background: "var(--gradient-btn)",
+            filter: "brightness(1.04)",
+            boxShadow: "var(--elevated-shadow)",
         },
     }}
 >

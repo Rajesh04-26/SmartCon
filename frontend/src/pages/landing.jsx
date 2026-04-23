@@ -3,9 +3,11 @@ import "../App.css";
 import { useNavigate } from 'react-router-dom';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { FiShield, FiZap, FiCpu, FiGlobe } from 'react-icons/fi'; // Install react-icons if you haven't
+import { themes, useTheme } from '../contexts/ThemeContext';
 
 export default function LandingPage() {
     const router = useNavigate();
+    const { currentTheme, setCurrentTheme } = useTheme();
     const { scrollYProgress } = useScroll();
     const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
@@ -44,6 +46,18 @@ export default function LandingPage() {
                 <div className='navlist'>
                     <div onClick={() => router("/aljk23")}>Join as Guest</div>
                     <div onClick={() => router("/auth")}>Register</div>
+                    <select
+                        className="themeSelect"
+                        value={currentTheme}
+                        onChange={(e) => setCurrentTheme(e.target.value)}
+                        aria-label="Choose theme"
+                    >
+                        {themes.map((theme) => (
+                            <option key={theme.id} value={theme.id}>
+                                {theme.label}
+                            </option>
+                        ))}
+                    </select>
                     <motion.div 
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}

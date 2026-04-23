@@ -159,7 +159,12 @@ export const connectToSocket = (server) => {
         socket.on("send-direct-chat-message", async (payload) => {
             try {
                 const savedMessage = await saveDirectChatMessage(payload);
-                io.to(`direct:${savedMessage.conversationId}`).emit("direct-chat-message", savedMessage);
+                const directRoom = `direct:${savedMessage.conversationId}`;
+                io.to(directRoom).emit("direct-chat-message", savedMessage);
+                // Ensure sender always sees the message even if room join was delayed/missed.
+                if (!socket.rooms.has(directRoom)) {
+                    io.to(socket.id).emit("direct-chat-message", savedMessage);
+                }
             } catch (error) {
                 io.to(socket.id).emit("chat-error", {
                     message: error.message || "Failed to send direct message."

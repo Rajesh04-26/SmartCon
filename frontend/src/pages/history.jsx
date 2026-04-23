@@ -71,9 +71,8 @@ function History() {
         p: 4,
         minHeight: "100vh",
         pt: 12,
-        background:
-          "radial-gradient(circle at top left, rgba(99,102,241,0.25), transparent 45%), radial-gradient(circle at bottom right, rgba(6,182,212,0.25), transparent 45%), linear-gradient(180deg, #020617, #0f172a)",
-        color: "#f8fafc"
+        background: "var(--page-bg)",
+        color: "var(--text-main)"
       }}
     >
       <Navbar />
@@ -84,7 +83,7 @@ function History() {
         <IconButton onClick={() => routeTo("/")}>
           <HomeIcon />
         </IconButton>
-        <Typography variant="h5" fontWeight="bold" ml={1} sx={{ color: "#f8fafc" }}>
+        <Typography variant="h5" fontWeight="bold" ml={1} sx={{ color: "var(--text-main)" }}>
           Meeting History
         </Typography>
         </Box>
@@ -100,7 +99,7 @@ function History() {
 
       {/* EMPTY STATE */}
       {meetings.length === 0 && (
-        <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
+        <Typography sx={{ color: "var(--text-main)", fontWeight: 700 }}>
           No meeting history found.
         </Typography>
       )}
@@ -113,7 +112,8 @@ function History() {
               elevation={3}
               sx={{
                 borderRadius: 3,
-                backgroundColor: "rgba(15, 23, 42, 0.92)",
+                backgroundColor: "var(--surface-strong)",
+                border: "1px solid var(--glass-border)",
                 transition: "0.3s",
                 "&:hover": {
                   transform: "translateY(-5px)",
@@ -127,9 +127,9 @@ function History() {
                     size="small"
                     onClick={() => handleDeleteItem(e._id)}
                     sx={{
-                      color: "rgba(248,250,252,0.75)",
+                      color: "var(--text-muted)",
                       background: "transparent",
-                      border: "1px solid rgba(248,250,252,0.2)"
+                      border: "1px solid var(--glass-border)"
                     }}
                   >
                     <CloseIcon fontSize="small" />
@@ -138,7 +138,7 @@ function History() {
 
                 <Box display="flex" alignItems="center" mb={1}>
                   <VideocamIcon color="primary" />
-                  <Typography ml={1} fontWeight="bold" sx={{ color: "#f8fafc" }}>
+                  <Typography ml={1} fontWeight="bold" sx={{ color: "var(--text-main)" }}>
                     Meeting
                   </Typography>
                 </Box>
@@ -151,13 +151,13 @@ function History() {
                     color="primary"
                     variant="outlined"
                     size="small"
-                    sx={{ fontWeight: 700, color: "#f8fafc", borderColor: "#60a5fa" }}
+                    sx={{ fontWeight: 700, color: "var(--text-main)", borderColor: "var(--accent)" }}
                   />
                 </Box>
 
                 <Box display="flex" alignItems="center">
                   <CalendarMonthIcon fontSize="small" color="action" />
-                  <Typography ml={1} sx={{ color: "#e2e8f0", fontWeight: 700 }}>
+                  <Typography ml={1} sx={{ color: "var(--text-soft)", fontWeight: 700 }}>
                     {formatDate(e.date)}
                   </Typography>
                 </Box>

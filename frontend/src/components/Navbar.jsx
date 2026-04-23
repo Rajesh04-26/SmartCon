@@ -13,29 +13,35 @@ import {
     TextField,
     Typography
 } from "@mui/material";
+import { themes, useTheme } from "../contexts/ThemeContext";
 
 const githubAvatars = [
-    "https://api.dicebear.com/8.x/identicon/svg?seed=blue-symbol",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-1",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-2",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-3",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-4",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-5",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-6",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-7",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-8",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-9",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-10",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-11",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-12",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-13",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-14",
-    "https://api.dicebear.com/8.x/identicon/svg?seed=github-15"
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Boy1",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Girl1",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Boy2",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Girl2",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Man1",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Woman1",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Man2",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=Woman2",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=CoolLongHairBoy1",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=CoolLongHairBoy2",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=BoyGogglesBlackHair",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=BoyGogglesGreenHair",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=SkaterBoyBlackHair",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=HandsomeBoyBlackHairFairSkin",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=TrendyGirlPixie",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=GirlBraidsChic",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=FairGirlBlackHairClassic",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=FairGirlBlackHairWithSpecs",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=BoyBlackHairSharpLook",
+    "https://api.dicebear.com/8.x/adventurer/svg?seed=BoyBlackHairStreetStyle"
 ];
 
 const Navbar = () => {
     const navigate = useNavigate();
     const { userData, logout, updateProfile, updateAvatar, uploadChatMedia, deleteAccount } = useContext(AuthContext);
+    const { currentTheme, setCurrentTheme } = useTheme();
     const isLoggedIn = Boolean(localStorage.getItem("token"));
     const [menuAnchor, setMenuAnchor] = useState(null);
     const [profileOpen, setProfileOpen] = useState(false);
@@ -69,6 +75,18 @@ const Navbar = () => {
                 <button className="navLinkBtn" onClick={() => navigate("/chat")}>Chat</button>
                 <button className="navLinkBtn" onClick={() => navigate("/home")}>SmartCon</button>
                 <button className="navLinkBtn" onClick={() => navigate("/history")}>History</button>
+                <select
+                    className="themeSelect"
+                    value={currentTheme}
+                    onChange={(e) => setCurrentTheme(e.target.value)}
+                    aria-label="Choose theme"
+                >
+                    {themes.map((theme) => (
+                        <option key={theme.id} value={theme.id}>
+                            {theme.label}
+                        </option>
+                    ))}
+                </select>
                 {!isLoggedIn ? (
                     <>
                         <button className="navLinkBtn" onClick={() => navigate("/auth")}>Login</button>
@@ -87,10 +105,10 @@ const Navbar = () => {
                             onClose={closeMenu}
                             PaperProps={{
                                 sx: {
-                                    background: "rgba(2, 6, 23, 0.72)",
-                                    color: "#f8fafc",
+                                    background: "var(--surface-strong)",
+                                    color: "var(--text-main)",
                                     backdropFilter: "blur(12px)",
-                                    border: "1px solid rgba(148,163,184,0.25)"
+                                    border: "1px solid var(--glass-border)"
                                 }
                             }}
                         >
@@ -130,9 +148,9 @@ const Navbar = () => {
                 maxWidth="sm"
                 PaperProps={{
                     sx: {
-                        background: "linear-gradient(180deg, #020617, #0f172a)",
-                        color: "#f8fafc",
-                        border: "1px solid rgba(148,163,184,0.3)"
+                        background: "var(--surface-strong)",
+                        color: "var(--text-main)",
+                        border: "1px solid var(--glass-border)"
                     }
                 }}
             >
@@ -145,8 +163,8 @@ const Navbar = () => {
                         value={form.name}
                         onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                         sx={{ mt: 1 }}
-                        InputLabelProps={{ sx: { color: "#cbd5e1", fontWeight: 700 } }}
-                        InputProps={{ sx: { color: "#fff", fontWeight: 700 } }}
+                        InputLabelProps={{ sx: { color: "var(--text-muted)", fontWeight: 700 } }}
+                        InputProps={{ sx: { color: "var(--text-main)", fontWeight: 700 } }}
                     />
                     <TextField
                         margin="dense"
@@ -156,8 +174,8 @@ const Navbar = () => {
                         minRows={2}
                         value={form.bio}
                         onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-                        InputLabelProps={{ sx: { color: "#cbd5e1", fontWeight: 700 } }}
-                        InputProps={{ sx: { color: "#fff", fontWeight: 700 } }}
+                        InputLabelProps={{ sx: { color: "var(--text-muted)", fontWeight: 700 } }}
+                        InputProps={{ sx: { color: "var(--text-main)", fontWeight: 700 } }}
                     />
                     <TextField
                         margin="dense"
@@ -166,8 +184,8 @@ const Navbar = () => {
                         fullWidth
                         value={form.gender}
                         onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
-                        InputLabelProps={{ sx: { color: "#cbd5e1", fontWeight: 700 } }}
-                        InputProps={{ sx: { color: "#fff", fontWeight: 700 } }}
+                        InputLabelProps={{ sx: { color: "var(--text-muted)", fontWeight: 700 } }}
+                        InputProps={{ sx: { color: "var(--text-main)", fontWeight: 700 } }}
                     >
                         <MenuItem value="male">Male</MenuItem>
                         <MenuItem value="female">Female</MenuItem>
@@ -180,10 +198,10 @@ const Navbar = () => {
                         fullWidth
                         value={form.location}
                         onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-                        InputLabelProps={{ sx: { color: "#cbd5e1", fontWeight: 700 } }}
-                        InputProps={{ sx: { color: "#fff", fontWeight: 700 } }}
+                        InputLabelProps={{ sx: { color: "var(--text-muted)", fontWeight: 700 } }}
+                        InputProps={{ sx: { color: "var(--text-main)", fontWeight: 700 } }}
                     />
-                    <Typography sx={{ mt: 1.2, color: "#ffffff", fontWeight: 800 }}>
+                    <Typography sx={{ mt: 1.2, color: "var(--text-main)", fontWeight: 800 }}>
                         Friends Count: {userData?.user?.friendsCount || 0}
                     </Typography>
                     <Button sx={{ mt: 1 }} variant="outlined" component="label" size="small">

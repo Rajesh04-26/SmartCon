@@ -188,6 +188,18 @@ function ChatPage() {
     const sendMessage = async () => {
         if (!selectedUser) return;
         if (!text.trim() && !mediaPayload?.mediaUrl) return;
+        if (selectedUser.relationStatus !== "friend") {
+            setError("You can chat only with friends. Accept friend request first.");
+            return;
+        }
+        if (!token) {
+            setError("Session expired. Please login again.");
+            return;
+        }
+        if (!socketRef.current) {
+            setError("Chat connection is not ready. Please wait a moment.");
+            return;
+        }
         setIsSending(true);
         try {
             socketRef.current.emit("join-direct-chat", conversationId);
@@ -333,7 +345,7 @@ function ChatPage() {
                         {filteredUsers.map((user) => (
                             <div key={user._id} className="userListItem">
                                 <div className="userListInfo" onClick={() => handleSelectUser(user)}>
-                                    <Avatar src={user.avatar} sx={{ width: 30, height: 30 }} />
+                                    <Avatar src={user.avatar} sx={{ width: 40, height: 40 }} />
                                     <span>{user.name}</span>
                                 </div>
                                 {user.relationStatus === "none" ? (
@@ -474,7 +486,7 @@ function ChatPage() {
                         </Button>
                     </div>
                     {selectedUser && selectedUser.relationStatus !== "friend" ? (
-                        <p style={{ marginTop: 10, color: "#f59e0b" }}>
+                        <p style={{ marginTop: 10, color: "var(--warning)" }}>
                             Accept friend request first to start chatting.
                         </p>
                     ) : null}
