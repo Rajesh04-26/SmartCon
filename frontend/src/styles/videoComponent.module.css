@@ -126,13 +126,12 @@ body {
 
 .participantReactionStack {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  right: 12px;
+  bottom: 12px;
   display: flex;
-  flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
   z-index: 12;
+  pointer-events: none;
 }
 
 .participantReactionBubble {
@@ -143,13 +142,13 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-main);
   border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 0.8rem;
-  animation: reactionPop 0.25s ease;
+  padding: 6px 10px;
+  font-size: 0.95rem;
+  animation: reactionFloatUp 1.8s ease-out forwards;
 }
 
 .participantReactionBubble small {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #e5e7eb;
 }
 
@@ -483,6 +482,50 @@ body {
     z-index: 1400;
 }
 
+.pendingJoinPanel {
+  position: fixed;
+  top: 22px;
+  right: 22px;
+  width: min(360px, 92vw);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 12px;
+  z-index: 1200;
+}
+
+.pendingJoinPanel h3 {
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+}
+
+.pendingJoinItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pendingJoinItem span {
+  font-size: 0.88rem;
+}
+
+.shareToast {
+  position: fixed;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(2, 6, 23, 0.88);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  border-radius: 999px;
+  padding: 8px 14px;
+  z-index: 1150;
+  font-size: 0.84rem;
+}
+
 .raiseHandPopup {
     position: static;
     background: transparent;
@@ -550,6 +593,21 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes reactionFloatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-70px) scale(1.05);
   }
 }
 

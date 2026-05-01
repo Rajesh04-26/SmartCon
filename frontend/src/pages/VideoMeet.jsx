@@ -14,6 +14,7 @@ import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
 import ChatIcon from '@mui/icons-material/Chat'
 import PanToolIcon from '@mui/icons-material/PanTool';
+import ShareIcon from '@mui/icons-material/Share';
 import server from '../environment';
 import ParticipantTile from '../components/ParticipantTile';
 
@@ -62,6 +63,12 @@ const meetingEmojis = ["😀", "😂", "😍", "😢", "😮", "😡", "👍", "
 let [localStreamState, setLocalStreamState] = useState(null);
 let [participantNames, setParticipantNames] = useState({});
 let [spotlightId, setSpotlightId] = useState(null);
+let [joinStatus, setJoinStatus] = useState("idle");
+let [joinRejectionMessage, setJoinRejectionMessage] = useState("");
+let [isHost, setIsHost] = useState(false);
+let [hostId, setHostId] = useState(null);
+let [pendingJoinRequests, setPendingJoinRequests] = useState([]);
+let [shareStatus, setShareStatus] = useState("");
 useEffect(() => {
     console.log("HELLO")
     getPermissions();
@@ -271,6 +278,33 @@ setLocalStreamState(stream); // 🔥 IMPORTANT
 
     
 socketIdRef.current = socketRef.current.id
+            socketRef.current.on("join-status", ({ status, message, isHost: hostPrivilege }) => {
+                if (status === "waiting") {
+                    setJoinStatus("waiting");
+                }
+                if (status === "approved") {
+                    setJoinStatus("joined");
+                    setJoinRejectionMessage("");
+                    setIsHost(Boolean(hostPrivilege));
+                }
+                if (status === "rejected") {
+                    setJoinStatus("rejected");
+                    setJoinRejectionMessage(message || "Host rejected your request");
+                }
+            });
+            socketRef.current.on("host-info", ({ hostId: nextHostId, isHost: hostPrivilege }) => {
+                setHostId(nextHostId || null);
+                setIsHost(Boolean(hostPrivilege));
+            });
+            socketRef.current.on("join-request", (requestPayload) => {
+                setPendingJoinRequests((prev) => {
+                    const already = prev.some((item) => item.requestId === requestPayload.requestId);
+                    return already ? prev : [...prev, requestPayload];
+                });
+            });
+            socketRef.current.on("pending-join-requests", (requests = []) => {
+                setPendingJoinRequests(requests);
+            });
             socketRef.current.emit('join-call', { path: window.location.pathname, username })
            
 // 😀 Listen Reactions
@@ -285,6 +319,9 @@ socketRef.current.on("receive-reaction", (reactionPayload, legacySocketId) => {
                   id: `${legacySocketId || "legacy"}-${Date.now()}`
               }
             : reactionPayload;
+    if (normalizedReaction.socketId && normalizedReaction.socketId === socketIdRef.current) {
+        return;
+    }
 
     setReactions((prev) => [...prev, normalizedReaction]);
 
@@ -472,8 +509,59 @@ let sendRaiseHand = () => {
 };
     let connect = () => {
         setAskForUsername(false);
+        setJoinStatus("requesting");
         getMedia();
     }
+
+    let handleJoinRequestDecision = (requestId, decision) => {
+        if (!socketRef.current) return;
+        socketRef.current.emit("respond-join-request", {
+            path: window.location.pathname,
+            requestId,
+            decision
+        });
+        setPendingJoinRequests((prev) => prev.filter((request) => request.requestId !== requestId));
+    };
+
+    let shareMeeting = async () => {
+        const meetingCode = window.location.pathname.replace("/", "");
+        const configuredBaseUrl = (process.env.REACT_APP_BASE_URL || "").trim();
+        const runtimeBaseUrl = window.location.origin || "http://localhost:3000";
+        const resolvedBaseUrl = (configuredBaseUrl || runtimeBaseUrl).replace(/\/+$/, "");
+        const meetingLink = `${resolvedBaseUrl}/${meetingCode}`;
+        const shareText = `Join my meeting on SmartCon.\nMeeting code: ${meetingCode}`;
+        const copyText = `${shareText}\nLink: ${meetingLink}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "SmartCon Meeting",
+                    text: shareText,
+                    url: meetingLink
+                });
+                setShareStatus("Meeting link shared");
+                return;
+            } catch (error) {
+                if (error?.name !== "AbortError") {
+                    setShareStatus("Sharing failed, try copy instead");
+                }
+            }
+        }
+
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(copyText);
+            setShareStatus("Meeting details copied");
+            return;
+        }
+
+        setShareStatus(`Share this code manually: ${meetingCode}`);
+    };
+
+    useEffect(() => {
+        if (!shareStatus) return undefined;
+        const toastTimer = setTimeout(() => setShareStatus(""), 2200);
+        return () => clearTimeout(toastTimer);
+    }, [shareStatus]);
 
     useEffect(() => {
         return () => {
@@ -527,7 +615,7 @@ let sendRaiseHand = () => {
     }, [participants, remoteParticipants, spotlightId]);
     return (
         <div>
-           {askForUsername === true ?
+            {askForUsername ? (
     <div className={styles.lobbyContainer}>
 
         <div className={styles.lobbyCard}>
@@ -568,7 +656,29 @@ let sendRaiseHand = () => {
         </div>
 
     </div>
-:
+) : joinStatus !== "joined" ? (
+    <div className={styles.lobbyContainer}>
+        <div className={styles.lobbyCard}>
+            {joinStatus === "waiting" || joinStatus === "requesting" ? (
+                <>
+                    <h1 className={styles.lobbyTitle}>Waiting Room</h1>
+                    <p className={styles.lobbySubtitle}>Waiting for host approval...</p>
+                    <Button variant="outlined" className={styles.lobbyBtn} onClick={handleEndCall}>
+                        Exit
+                    </Button>
+                </>
+            ) : (
+                <>
+                    <h1 className={styles.lobbyTitle}>Join Rejected</h1>
+                    <p className={styles.lobbySubtitle}>{joinRejectionMessage || "Host rejected your request"}</p>
+                    <Button variant="contained" className={styles.lobbyBtn} onClick={handleEndCall}>
+                        Back to Home
+                    </Button>
+                </>
+            )}
+        </div>
+    </div>
+) : (
 
 
                 <div className={styles.meetVideoContainer}>
@@ -615,6 +725,9 @@ let sendRaiseHand = () => {
                        
                         {/* ✋ Raise Hand */}
 
+                        <IconButton onClick={shareMeeting} style={{ color: "white" }} title="Share meeting">
+                            <ShareIcon />
+                        </IconButton>
                         <IconButton onClick={sendRaiseHand} style={{ color: "white" }} title="Raise hand">
                             <PanToolIcon />
                         </IconButton>
@@ -644,6 +757,31 @@ let sendRaiseHand = () => {
                             </IconButton>
                         </Badge>
                     </div>
+                    {shareStatus ? <div className={styles.shareToast}>{shareStatus}</div> : null}
+                    {isHost && pendingJoinRequests.length > 0 ? (
+                        <div className={styles.pendingJoinPanel}>
+                            <h3>Pending Join Requests</h3>
+                            {pendingJoinRequests.map((request) => (
+                                <div key={request.requestId} className={styles.pendingJoinItem}>
+                                    <span>{request.username || request.socketId}</span>
+                                    <div>
+                                        <Button size="small" variant="contained" onClick={() => handleJoinRequestDecision(request.requestId, "accept")}>
+                                            Accept
+                                        </Button>
+                                        <Button
+                                            size="small"
+                                            color="error"
+                                            variant="outlined"
+                                            style={{ marginLeft: "8px" }}
+                                            onClick={() => handleJoinRequestDecision(request.requestId, "reject")}
+                                        >
+                                            Reject
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
  {showReactions && (
     <div className={styles.reactionPopup}>
         {meetingEmojis.map((emoji) => (
@@ -799,9 +937,7 @@ let sendRaiseHand = () => {
     ) : null}
 </div>
                 </div>
-            }
-            
-    
+            )}
         </div>
     )
 }

@@ -48,7 +48,7 @@ function ParticipantTile({ participantId, stream, name, isMuted, onClick, reacti
             <video ref={videoRef} autoPlay playsInline muted={isMuted} className={styles.tileVideo} />
             <div className={styles.participantOverlay}>{name}</div>
             <div className={styles.participantReactionStack}>
-                {reactions.slice(-3).map((reaction) => (
+                {reactions.slice(-1).map((reaction) => (
                     <div key={reaction.id} className={styles.participantReactionBubble}>
                         <span>{reaction.emoji}</span>
                         <small>{reaction.senderName}</small>

@@ -1281,6 +1281,14 @@ body[data-theme="default"] .themeSelect option {
   color: var(--text-muted) !important;
 }
 
+body[data-theme="light"] .smartconPage .joinBox .MuiOutlinedInput-input {
+  color: rgba(15, 23, 42, 0.82) !important;
+}
+
+body[data-theme="light"] .smartconPage .joinBox .MuiInputLabel-root {
+  color: rgba(15, 23, 42, 0.76) !important;
+}
+
 .avatarGrid {
   grid-template-columns: repeat(4, 1fr);
 }

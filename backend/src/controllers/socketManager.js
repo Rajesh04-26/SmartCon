@@ -5,6 +5,10 @@ import { saveChatMessage, saveDirectChatMessage } from "./user.controller.js";
 let connections = {}
 let messages = {}
 let timeOnline = {}
+let roomHosts = {}
+let pendingJoinRequests = {}
+let socketToRoom = {}
+let socketToUsername = {}
 
 export const connectToSocket = (server) => {
     const io = new Server(server, {
@@ -21,39 +25,107 @@ export const connectToSocket = (server) => {
 
         console.log("SOMETHING CONNECTED")
 
-        socket.on("join-call", (payload) => {
-            const path = typeof payload === "string" ? payload : payload?.path;
-            const username = typeof payload === "object" ? payload?.username : "Participant";
-            if (!path) return;
-
-            if (connections[path] === undefined) {
-                connections[path] = []
+        const addParticipantToRoom = (path, participantId, participantUsername) => {
+            if (!connections[path]) connections[path] = [];
+            if (!connections[path].includes(participantId)) {
+                connections[path].push(participantId);
             }
-            connections[path].push(socket.id)
 
-            timeOnline[socket.id] = new Date();
-
-            // connections[path].forEach(elem => {
-            //     io.to(elem)
-            // })
+            socketToRoom[participantId] = path;
+            socketToUsername[participantId] = participantUsername || "Participant";
+            timeOnline[participantId] = new Date();
 
             for (let a = 0; a < connections[path].length; a++) {
-                io.to(connections[path][a]).emit("user-joined", socket.id, connections[path])
+                io.to(connections[path][a]).emit("user-joined", participantId, connections[path]);
             }
+
             connections[path].forEach((id) => {
-                io.to(id).emit("participant-name", { socketId: socket.id, username: username || "Participant" });
+                io.to(id).emit("participant-name", { socketId: participantId, username: participantUsername || "Participant" });
+            });
+
+            io.to(participantId).emit("host-info", {
+                hostId: roomHosts[path],
+                isHost: roomHosts[path] === participantId
             });
 
             if (messages[path] !== undefined) {
                 for (let a = 0; a < messages[path].length; ++a) {
-                   io.to(socket.id).emit("chat-message",
-    messages[path][a]['data'],
-    messages[path][a]['sender']
-)
-
+                    io.to(participantId).emit(
+                        "chat-message",
+                        messages[path][a]["data"],
+                        messages[path][a]["sender"]
+                    );
                 }
             }
+        };
 
+        const emitPendingToHost = (path) => {
+            const hostId = roomHosts[path];
+            if (!hostId) return;
+            const pending = Object.values(pendingJoinRequests[path] || {});
+            io.to(hostId).emit("pending-join-requests", pending);
+        };
+
+        socket.on("join-call", (payload) => {
+            const path = typeof payload === "string" ? payload : payload?.path;
+            const username = typeof payload === "object" ? payload?.username : "Participant";
+            if (!path) return;
+            const normalizedUsername = username || "Participant";
+            const existingRoom = connections[path] && connections[path].length > 0;
+            const currentHostId = roomHosts[path];
+
+            if (!existingRoom) {
+                roomHosts[path] = socket.id;
+                socket.join(`meeting:${path}`);
+                io.to(socket.id).emit("join-status", { status: "approved", isHost: true });
+                addParticipantToRoom(path, socket.id, normalizedUsername);
+                return;
+            }
+
+            if (connections[path].includes(socket.id)) {
+                addParticipantToRoom(path, socket.id, normalizedUsername);
+                return;
+            }
+
+            const requestId = `${socket.id}-${Date.now()}`;
+            if (!pendingJoinRequests[path]) pendingJoinRequests[path] = {};
+            pendingJoinRequests[path][requestId] = {
+                requestId,
+                socketId: socket.id,
+                username: normalizedUsername,
+                requestedAt: Date.now()
+            };
+
+            socketToUsername[socket.id] = normalizedUsername;
+            socketToRoom[socket.id] = path;
+
+            io.to(socket.id).emit("join-status", { status: "waiting" });
+            if (currentHostId) {
+                io.to(currentHostId).emit("join-request", pendingJoinRequests[path][requestId]);
+            }
+            emitPendingToHost(path);
+        });
+
+        socket.on("respond-join-request", ({ path, requestId, decision }) => {
+            if (!path || !requestId || !decision) return;
+            if (roomHosts[path] !== socket.id) return;
+            if (!pendingJoinRequests[path] || !pendingJoinRequests[path][requestId]) return;
+
+            const request = pendingJoinRequests[path][requestId];
+            delete pendingJoinRequests[path][requestId];
+
+            if (decision === "accept") {
+                io.to(request.socketId).emit("join-status", { status: "approved", isHost: false });
+                addParticipantToRoom(path, request.socketId, request.username);
+            } else {
+                io.to(request.socketId).emit("join-status", {
+                    status: "rejected",
+                    message: "Host rejected your request"
+                });
+                delete socketToRoom[request.socketId];
+            }
+
+            emitPendingToHost(path);
         })
 
         socket.on("signal", (toId, message) => {
@@ -203,14 +275,42 @@ export const connectToSocket = (server) => {
                         connections[key].splice(index, 1)
 
 
+                        if (roomHosts[key] === socket.id && connections[key].length > 0) {
+                            roomHosts[key] = connections[key][0];
+                            io.to(roomHosts[key]).emit("host-info", { hostId: roomHosts[key], isHost: true });
+                            connections[key].forEach((participantId) => {
+                                io.to(participantId).emit("host-info", {
+                                    hostId: roomHosts[key],
+                                    isHost: participantId === roomHosts[key]
+                                });
+                            });
+                            emitPendingToHost(key);
+                        }
+
                         if (connections[key].length === 0) {
                             delete connections[key]
+                            delete messages[key]
+                            delete roomHosts[key]
+                            delete pendingJoinRequests[key]
                         }
                     }
                 }
 
             }
 
+            Object.entries(pendingJoinRequests).forEach(([roomPath, pendingMap]) => {
+                const entries = Object.entries(pendingMap || {});
+                entries.forEach(([requestId, request]) => {
+                    if (request.socketId === socket.id) {
+                        delete pendingJoinRequests[roomPath][requestId];
+                    }
+                });
+                emitPendingToHost(roomPath);
+            });
+
+            delete socketToRoom[socket.id];
+            delete socketToUsername[socket.id];
+            delete timeOnline[socket.id];
 
         })
 
