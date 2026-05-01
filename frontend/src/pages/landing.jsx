@@ -45,7 +45,7 @@ export default function LandingPage() {
                 </div>
                 <div className='navlist'>
                     <div onClick={() => router("/aljk23")}>Join as Guest</div>
-                    <div onClick={() => router("/auth")}>Register</div>
+                    <div onClick={() => router("/auth?mode=signup")}>Register</div>
                     <select
                         className="themeSelect"
                         value={currentTheme}
@@ -62,7 +62,7 @@ export default function LandingPage() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className='login-btn-premium' 
-                        onClick={() => router("/auth")} 
+                        onClick={() => router("/auth?mode=signin")} 
                         role='button'
                     >
                         Login
@@ -93,7 +93,7 @@ export default function LandingPage() {
                     </motion.p>
 
                     <motion.div variants={itemVariants} className='cta-wrapper'>
-                        <div role='button' className="main-cta" onClick={() => router("/auth")}>
+                        <div role='button' className="main-cta" onClick={() => router("/auth?mode=signup")}>
                             Get Started Free
                         </div>
                     </motion.div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
                 >
                     <h2>Ready to transform your workflow?</h2>
                     <p>Join 10,000+ teams already using SMARTCON.</p>
-                    <button className="main-cta" onClick={() => router("/auth")}>Get Started Now</button>
+                    <button className="main-cta" onClick={() => router("/auth?mode=signup")}>Get Started Now</button>
                 </motion.div>
                 
                 <footer className="simple-footer">

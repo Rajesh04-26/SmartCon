@@ -69,6 +69,7 @@ let [isHost, setIsHost] = useState(false);
 let [hostId, setHostId] = useState(null);
 let [pendingJoinRequests, setPendingJoinRequests] = useState([]);
 let [shareStatus, setShareStatus] = useState("");
+const websiteLink = "https://smartcon-app.onrender.com";
 useEffect(() => {
     console.log("HELLO")
     getPermissions();
@@ -525,19 +526,14 @@ let sendRaiseHand = () => {
 
     let shareMeeting = async () => {
         const meetingCode = window.location.pathname.replace("/", "");
-        const configuredBaseUrl = (process.env.REACT_APP_BASE_URL || "").trim();
-        const runtimeBaseUrl = window.location.origin || "http://localhost:3000";
-        const resolvedBaseUrl = (configuredBaseUrl || runtimeBaseUrl).replace(/\/+$/, "");
-        const meetingLink = `${resolvedBaseUrl}/${meetingCode}`;
-        const shareText = `Join my meeting on SmartCon.\nMeeting code: ${meetingCode}`;
-        const copyText = `${shareText}\nLink: ${meetingLink}`;
+        const whatsappMessage = `Join my meeting on SmartCon.\n\n*Meeting Code : ${meetingCode}*\n\nWebsite Link : ${websiteLink}`;
+        const emailMessage = `Join my meeting on SmartCon.\n\nMeeting Code : ${meetingCode}\n\nWebsite Link : ${websiteLink}\n\nThanks from SmartCon Team`;
 
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: "SmartCon Meeting",
-                    text: shareText,
-                    url: meetingLink
+                    text: whatsappMessage
                 });
                 setShareStatus("Meeting link shared");
                 return;
@@ -549,7 +545,7 @@ let sendRaiseHand = () => {
         }
 
         if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(copyText);
+            await navigator.clipboard.writeText(emailMessage);
             setShareStatus("Meeting details copied");
             return;
         }
@@ -663,7 +659,16 @@ let sendRaiseHand = () => {
                 <>
                     <h1 className={styles.lobbyTitle}>Waiting Room</h1>
                     <p className={styles.lobbySubtitle}>Waiting for host approval...</p>
-                    <Button variant="outlined" className={styles.lobbyBtn} onClick={handleEndCall}>
+                    <Button
+                        variant="outlined"
+                        className={styles.lobbyBtn}
+                        onClick={handleEndCall}
+                        sx={{
+                            color: "var(--text-main)",
+                            borderColor: "var(--glass-border)",
+                            backgroundColor: "var(--surface-soft)"
+                        }}
+                    >
                         Exit
                     </Button>
                 </>
@@ -682,6 +687,16 @@ let sendRaiseHand = () => {
 
 
                 <div className={styles.meetVideoContainer}>
+                    {reactions.length > 0 ? (
+                        <div className={styles.topReactionStack}>
+                            {reactions.slice(-1).map((reaction) => (
+                                <div key={reaction.id} className={styles.topReactionBanner}>
+                                    <span className={styles.topReactionEmoji}>{reaction.emoji}</span>
+                                    <span className={styles.topReactionSender}>{reaction.senderName}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
                     {raiseHandAlerts.length > 0 ? (
                         <div className={styles.raiseHandNoticeStack}>
                             {raiseHandAlerts.slice(-1).map((item) => (
@@ -725,34 +740,34 @@ let sendRaiseHand = () => {
                        
                         {/* ✋ Raise Hand */}
 
-                        <IconButton onClick={shareMeeting} style={{ color: "white" }} title="Share meeting">
+                        <IconButton onClick={shareMeeting} title="Share meeting">
                             <ShareIcon />
                         </IconButton>
-                        <IconButton onClick={sendRaiseHand} style={{ color: "white" }} title="Raise hand">
+                        <IconButton onClick={sendRaiseHand} title="Raise hand">
                             <PanToolIcon />
                         </IconButton>
 
 {/* 😀 Emoji Buttons */}
-<IconButton onClick={() => setShowReactions(!showReactions)} style={{ color: "white" }}>
+<IconButton onClick={() => setShowReactions(!showReactions)}>
     😀
 </IconButton>
 
-                        <IconButton onClick={handleVideo} style={{ color: "white" }}>
+                        <IconButton onClick={handleVideo}>
                             {(video === true) ? <VideocamIcon /> : <VideocamOffIcon />}
                         </IconButton>
                         {/* Red End Call Button */}
                         <IconButton onClick={handleEndCall} className={styles.endCallBtn} style={{ color: "white", backgroundColor: "red" }}>
                             <CallEndIcon />
                         </IconButton>
-                        <IconButton onClick={handleAudio} style={{ color: "white" }}>
+                        <IconButton onClick={handleAudio}>
                             {audio === true ? <MicIcon /> : <MicOffIcon />}
                         </IconButton>
                         {screenAvailable === true ?
-                            <IconButton onClick={handleScreen} style={{ color: "white" }}>
+                            <IconButton onClick={handleScreen}>
                                 {screen === true ? <ScreenShareIcon /> : <StopScreenShareIcon />}
                             </IconButton> : <></>}
                         <Badge badgeContent={newMessages} max={999} color='orange'>
-                            <IconButton onClick={() => setModal(!showModal)} style={{ color: "white" }}>
+                            <IconButton onClick={() => setModal(!showModal)}>
                                 <ChatIcon />
                             </IconButton>
                         </Badge>

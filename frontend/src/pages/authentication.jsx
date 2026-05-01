@@ -11,6 +11,7 @@ import Typography from '@mui/material/Typography';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { AuthContext } from '../contexts/AuthContext';
 import { Snackbar } from '@mui/material';
+import { useSearchParams } from "react-router-dom";
 
 
 
@@ -29,12 +30,17 @@ export default function Authentication() {
     const [message, setMessage] = React.useState("");
 
 
-    const [formState, setFormState] = React.useState(0);
+    const [searchParams] = useSearchParams();
+    const [formState, setFormState] = React.useState(searchParams.get("mode") === "signup" ? 1 : 0);
 
     const [open, setOpen] = React.useState(false)
 
 
     const { handleRegister, handleLogin } = React.useContext(AuthContext);
+
+    React.useEffect(() => {
+        setFormState(searchParams.get("mode") === "signup" ? 1 : 0);
+    }, [searchParams]);
 
     let handleAuth = async () => {
         try {
@@ -44,6 +50,7 @@ export default function Authentication() {
             }
             if (formState === 1) {
                 let result = await handleRegister(name, username, password);
+                setName("");
                 setUsername("");
                 setMessage(result);
                 setOpen(true);
