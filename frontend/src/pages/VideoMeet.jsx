@@ -306,6 +306,16 @@ socketIdRef.current = socketRef.current.id
             socketRef.current.on("pending-join-requests", (requests = []) => {
                 setPendingJoinRequests(requests);
             });
+            socketRef.current.on("meeting-ended", ({ message: endMessage } = {}) => {
+                setShareStatus(endMessage || "Meeting ended");
+                setTimeout(() => {
+                    try {
+                        let tracks = localVideoref.current?.srcObject?.getTracks?.() || [];
+                        tracks.forEach(track => track.stop());
+                    } catch (e) { }
+                    window.location.href = "/";
+                }, 900);
+            });
             socketRef.current.emit('join-call', { path: window.location.pathname, username })
            
 // 😀 Listen Reactions

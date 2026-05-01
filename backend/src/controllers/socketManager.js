@@ -266,26 +266,40 @@ export const connectToSocket = (server) => {
                     if (v[a] === socket.id) {
                         key = k
 
-                        for (let a = 0; a < connections[key].length; ++a) {
-                            io.to(connections[key][a]).emit('user-left', socket.id)
+                        const participantIds = [...connections[key]];
+                        const isHostDisconnect = roomHosts[key] === socket.id;
+
+                        if (isHostDisconnect) {
+                            participantIds.forEach((participantId) => {
+                                if (participantId !== socket.id) {
+                                    io.to(participantId).emit("meeting-ended", {
+                                        message: "Host left the meeting. Meeting ended."
+                                    });
+                                }
+                            });
+
+                            const pendingEntries = Object.values(pendingJoinRequests[key] || {});
+                            pendingEntries.forEach((request) => {
+                                io.to(request.socketId).emit("join-status", {
+                                    status: "rejected",
+                                    message: "Host left the meeting. Meeting ended."
+                                });
+                                delete socketToRoom[request.socketId];
+                            });
+
+                            delete connections[key]
+                            delete messages[key]
+                            delete roomHosts[key]
+                            delete pendingJoinRequests[key]
+                            continue;
+                        }
+
+                        for (let a = 0; a < participantIds.length; ++a) {
+                            io.to(participantIds[a]).emit('user-left', socket.id)
                         }
 
                         var index = connections[key].indexOf(socket.id)
-
                         connections[key].splice(index, 1)
-
-
-                        if (roomHosts[key] === socket.id && connections[key].length > 0) {
-                            roomHosts[key] = connections[key][0];
-                            io.to(roomHosts[key]).emit("host-info", { hostId: roomHosts[key], isHost: true });
-                            connections[key].forEach((participantId) => {
-                                io.to(participantId).emit("host-info", {
-                                    hostId: roomHosts[key],
-                                    isHost: participantId === roomHosts[key]
-                                });
-                            });
-                            emitPendingToHost(key);
-                        }
 
                         if (connections[key].length === 0) {
                             delete connections[key]
