@@ -1,6 +1,6 @@
 import axios from "axios";
 import httpStatus from "http-status";
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import server from "../environment";
 
@@ -25,6 +25,31 @@ export const AuthProvider = ({ children }) => {
         };
     });
     const router = useNavigate();
+
+    useEffect(() => {
+        const stored = localStorage.getItem("token");
+        if (!stored) return;
+        (async () => {
+            try {
+                const request = await client.post("/refresh", {}, {
+                    headers: { Authorization: `Bearer ${stored}` }
+                });
+                if (request.status === httpStatus.OK && request.data?.token) {
+                    localStorage.setItem("token", request.data.token);
+                }
+                if (request.data?.user) {
+                    localStorage.setItem("smartcon_user", JSON.stringify(request.data.user));
+                    setUserData((prev) => ({
+                        ...prev,
+                        token: request.data.token || prev.token,
+                        user: request.data.user
+                    }));
+                }
+            } catch {
+                /* keep existing local session; user can still use app until a protected call fails */
+            }
+        })();
+    }, []);
 
     const authHeader = () => ({
         headers: {

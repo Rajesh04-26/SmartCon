@@ -16,6 +16,7 @@ import {
     login,
     respondFriendRequest,
     register,
+    refreshSession,
     sendFriendRequest,
     updateDirectMessage,
     updateProfile,
@@ -30,6 +31,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 
 router.route("/login").post(login);
 router.route("/register").post(register);
+router.route("/refresh").post(refreshSession);
 router.route("/profile").get(getCurrentUser);
 router.route("/profile").put(updateProfile);
 router.route("/profile").delete(deleteAccount);

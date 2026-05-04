@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { Meeting } from "../models/meeting.model.js";
 import { ChatMessage } from "../models/chatMessage.model.js";
 import { FriendRequest } from "../models/friendRequest.model.js";
@@ -12,6 +12,25 @@ const getErrorMessage = (error) => {
     if (!error) return "Unknown error";
     if (typeof error === "string") return error;
     return error.message || "Unknown error";
+};
+
+const JWT_SECRET = process.env.JWT_SECRET || "smartcon-dev-jwt-secret-change-in-production";
+
+/** Stateless access token (no exp claim) so sessions do not time out; set JWT_SECRET in production. */
+const issueAccessToken = (userId) => jwt.sign({ sub: String(userId) }, JWT_SECRET);
+
+const resolveUserByAuthToken = async (rawToken) => {
+    if (!rawToken || typeof rawToken !== "string") {
+        return null;
+    }
+    try {
+        const decoded = jwt.verify(rawToken, JWT_SECRET);
+        const sub = decoded?.sub;
+        if (!sub) return null;
+        return User.findById(sub);
+    } catch {
+        return User.findOne({ token: rawToken });
+    }
 };
 
 const getTokenFromRequest = (req) => {
@@ -27,7 +46,7 @@ const getAuthUser = async (req) => {
         return { error: "Missing auth token", status: httpStatus.UNAUTHORIZED };
     }
 
-    const user = await User.findOne({ token });
+    const user = await resolveUserByAuthToken(token);
     if (!user) {
         return { error: "Invalid or expired token", status: httpStatus.UNAUTHORIZED };
     }
@@ -129,7 +148,7 @@ const login = async (req, res) => {
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
         if (isPasswordCorrect) {
-            const token = crypto.randomBytes(20).toString("hex");
+            const token = issueAccessToken(user._id);
 
             user.token = token;
             await user.save();
@@ -273,6 +292,24 @@ const getCurrentUser = async (req, res) => {
     } catch (e) {
         return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
             message: `Could not fetch profile: ${getErrorMessage(e)}`
+        });
+    }
+};
+
+const refreshSession = async (req, res) => {
+    try {
+        const auth = await getAuthUser(req);
+        if (auth.error) {
+            return res.status(auth.status).json({ message: auth.error });
+        }
+
+        return res.status(httpStatus.OK).json({
+            token: auth.token,
+            user: await serializeUser(auth.user)
+        });
+    } catch (e) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: `Could not refresh session: ${getErrorMessage(e)}`
         });
     }
 };
@@ -651,7 +688,7 @@ const saveChatMessage = async (payload) => {
         throw new Error("Missing token in chat payload.");
     }
 
-    const user = await User.findOne({ token });
+    const user = await resolveUserByAuthToken(token);
     if (!user) {
         throw new Error("Invalid chat token.");
     }
@@ -676,7 +713,7 @@ const saveDirectChatMessage = async (payload) => {
         throw new Error("Missing token or receiverId in direct message payload.");
     }
 
-    const sender = await User.findOne({ token });
+    const sender = await resolveUserByAuthToken(token);
     if (!sender) {
         throw new Error("Invalid chat token.");
     }
@@ -711,6 +748,7 @@ const saveDirectChatMessage = async (payload) => {
 export {
     login,
     register,
+    refreshSession,
     getUserHistory,
     addToHistory,
     clearUserHistory,
