@@ -15,9 +15,38 @@ const getErrorMessage = (error) => {
 };
 
 const JWT_SECRET = process.env.JWT_SECRET || "smartcon-dev-jwt-secret-change-in-production";
+const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "15m";
+const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
+const REFRESH_COOKIE = "smartcon_refresh";
 
-/** Stateless access token (no exp claim) so sessions do not time out; set JWT_SECRET in production. */
-const issueAccessToken = (userId) => jwt.sign({ sub: String(userId) }, JWT_SECRET);
+const isProd = process.env.NODE_ENV === "production";
+
+const refreshCookieOptions = () => ({
+    httpOnly: true,
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
+    path: "/api/v1/users",
+    maxAge: 7 * 24 * 60 * 60 * 1000
+});
+
+const setRefreshCookie = (res, refreshToken) => {
+    res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
+};
+
+const clearRefreshCookie = (res) => {
+    res.clearCookie(REFRESH_COOKIE, {
+        path: "/api/v1/users",
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax"
+    });
+};
+
+const issueAccessToken = (userId, authVersion) =>
+    jwt.sign({ sub: String(userId), ver: authVersion, typ: "access" }, JWT_SECRET, { expiresIn: ACCESS_EXPIRES });
+
+const issueRefreshToken = (userId, authVersion) =>
+    jwt.sign({ sub: String(userId), ver: authVersion, typ: "refresh" }, JWT_SECRET, { expiresIn: REFRESH_EXPIRES });
 
 const resolveUserByAuthToken = async (rawToken) => {
     if (!rawToken || typeof rawToken !== "string") {
@@ -25,9 +54,14 @@ const resolveUserByAuthToken = async (rawToken) => {
     }
     try {
         const decoded = jwt.verify(rawToken, JWT_SECRET);
-        const sub = decoded?.sub;
-        if (!sub) return null;
-        return User.findById(sub);
+        if (decoded.typ !== "access") {
+            return null;
+        }
+        const user = await User.findById(decoded.sub);
+        if (!user || Number(user.authVersion ?? 0) !== Number(decoded.ver)) {
+            return null;
+        }
+        return user;
     } catch {
         return User.findOne({ token: rawToken });
     }
@@ -148,12 +182,17 @@ const login = async (req, res) => {
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
         if (isPasswordCorrect) {
-            const token = issueAccessToken(user._id);
-
-            user.token = token;
+            const nextVer = Number(user.authVersion ?? 0) + 1;
+            user.authVersion = nextVer;
+            user.token = undefined;
             await user.save();
+
+            const accessToken = issueAccessToken(user._id, nextVer);
+            const refreshToken = issueRefreshToken(user._id, nextVer);
+            setRefreshCookie(res, refreshToken);
+
             return res.status(httpStatus.OK).json({
-                token,
+                token: accessToken,
                 user: await serializeUser(user)
             });
         }
@@ -298,20 +337,71 @@ const getCurrentUser = async (req, res) => {
 
 const refreshSession = async (req, res) => {
     try {
-        const auth = await getAuthUser(req);
-        if (auth.error) {
-            return res.status(auth.status).json({ message: auth.error });
+        const raw = req.cookies?.[REFRESH_COOKIE];
+        if (!raw) {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Missing refresh session." });
         }
 
+        const decoded = jwt.verify(raw, JWT_SECRET);
+        if (decoded.typ !== "refresh") {
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid refresh session." });
+        }
+
+        const user = await User.findById(decoded.sub);
+        if (!user || Number(user.authVersion ?? 0) !== Number(decoded.ver)) {
+            clearRefreshCookie(res);
+            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid or expired refresh session." });
+        }
+
+        const accessToken = issueAccessToken(user._id, user.authVersion);
+        const newRefresh = issueRefreshToken(user._id, user.authVersion);
+        setRefreshCookie(res, newRefresh);
+
         return res.status(httpStatus.OK).json({
-            token: auth.token,
-            user: await serializeUser(auth.user)
+            token: accessToken,
+            user: await serializeUser(user)
         });
     } catch (e) {
-        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+        clearRefreshCookie(res);
+        return res.status(httpStatus.UNAUTHORIZED).json({
             message: `Could not refresh session: ${getErrorMessage(e)}`
         });
     }
+};
+
+const logout = async (req, res) => {
+    const rawRefresh = req.cookies?.[REFRESH_COOKIE];
+    try {
+        const auth = await getAuthUser(req);
+        if (!auth.error) {
+            auth.user.authVersion = Number(auth.user.authVersion ?? 0) + 1;
+            auth.user.token = undefined;
+            await auth.user.save();
+            clearRefreshCookie(res);
+            return res.status(httpStatus.OK).json({ message: "Logged out." });
+        }
+    } catch {
+        /* ignore */
+    }
+
+    if (rawRefresh) {
+        try {
+            const decoded = jwt.verify(rawRefresh, JWT_SECRET);
+            if (decoded.typ === "refresh" && decoded.sub) {
+                const user = await User.findById(decoded.sub);
+                if (user && Number(user.authVersion ?? 0) === Number(decoded.ver)) {
+                    user.authVersion = Number(user.authVersion ?? 0) + 1;
+                    user.token = undefined;
+                    await user.save();
+                }
+            }
+        } catch {
+            /* invalid refresh */
+        }
+    }
+
+    clearRefreshCookie(res);
+    return res.status(httpStatus.OK).json({ message: "Logged out." });
 };
 
 const updateAvatar = async (req, res) => {
@@ -606,6 +696,7 @@ const deleteAccount = async (req, res) => {
     try {
         const auth = await getAuthUser(req);
         if (auth.error) return res.status(auth.status).json({ message: auth.error });
+        clearRefreshCookie(res);
         await FriendRequest.deleteMany({ $or: [{ fromUserId: auth.user._id }, { toUserId: auth.user._id }] });
         await DirectMessage.deleteMany({ $or: [{ senderId: auth.user._id }, { receiverId: auth.user._id }] });
         await ChatMessage.deleteMany({ senderId: auth.user._id });
@@ -749,6 +840,7 @@ export {
     login,
     register,
     refreshSession,
+    logout,
     getUserHistory,
     addToHistory,
     clearUserHistory,

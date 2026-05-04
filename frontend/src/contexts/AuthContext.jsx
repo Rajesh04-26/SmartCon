@@ -8,8 +8,40 @@ import server from "../environment";
 export const AuthContext = createContext({});
 
 const client = axios.create({
-    baseURL: `${server}/api/v1/users`
+    baseURL: `${server}/api/v1/users`,
+    withCredentials: true
 });
+
+client.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const original = error.config;
+        const status = error.response?.status;
+        const url = String(original?.url || "");
+        if (status !== httpStatus.UNAUTHORIZED || original?._retry) {
+            return Promise.reject(error);
+        }
+        if (url.includes("/login") || url.includes("/register") || url.includes("/refresh")) {
+            return Promise.reject(error);
+        }
+        original._retry = true;
+        try {
+            const refreshRes = await client.post("/refresh", {}, { withCredentials: true });
+            const nextToken = refreshRes.data?.token;
+            if (nextToken) {
+                localStorage.setItem("token", nextToken);
+            }
+            if (refreshRes.data?.user) {
+                localStorage.setItem("smartcon_user", JSON.stringify(refreshRes.data.user));
+            }
+            original.headers = original.headers || {};
+            original.headers.Authorization = `Bearer ${nextToken || localStorage.getItem("token") || ""}`;
+            return client(original);
+        } catch {
+            return Promise.reject(error);
+        }
+    }
+);
 
 const extractMessage = (error, fallback = "Something went wrong.") =>
     error?.response?.data?.message || error?.message || fallback;
@@ -27,26 +59,19 @@ export const AuthProvider = ({ children }) => {
     const router = useNavigate();
 
     useEffect(() => {
-        const stored = localStorage.getItem("token");
-        if (!stored) return;
+        if (localStorage.getItem("token")) return;
         (async () => {
             try {
-                const request = await client.post("/refresh", {}, {
-                    headers: { Authorization: `Bearer ${stored}` }
-                });
+                const request = await client.post("/refresh", {}, { withCredentials: true });
                 if (request.status === httpStatus.OK && request.data?.token) {
                     localStorage.setItem("token", request.data.token);
                 }
                 if (request.data?.user) {
                     localStorage.setItem("smartcon_user", JSON.stringify(request.data.user));
-                    setUserData((prev) => ({
-                        ...prev,
-                        token: request.data.token || prev.token,
-                        user: request.data.user
-                    }));
+                    setUserData({ token: request.data.token || "", user: request.data.user });
                 }
             } catch {
-                /* keep existing local session; user can still use app until a protected call fails */
+                /* no refresh cookie */
             }
         })();
     }, []);
@@ -70,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleLogin = async (username, password) => {
         try {
-            const request = await client.post("/login", { username, password });
+            const request = await client.post("/login", { username, password }, { withCredentials: true });
 
             if (request.status === httpStatus.OK) {
                 localStorage.setItem("token", request.data.token);
@@ -276,7 +301,12 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
+        try {
+            await client.post("/logout", {}, { ...authHeader(), withCredentials: true });
+        } catch {
+            /* still clear client session */
+        }
         localStorage.removeItem("token");
         localStorage.removeItem("smartcon_user");
         setUserData({ token: "", user: null });

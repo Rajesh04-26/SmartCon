@@ -14,9 +14,10 @@ import {
     getUserHistory,
     getUsersForChat,
     login,
+    logout,
     respondFriendRequest,
-    register,
     refreshSession,
+    register,
     sendFriendRequest,
     updateDirectMessage,
     updateProfile,
@@ -32,6 +33,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 
 router.route("/login").post(login);
 router.route("/register").post(register);
 router.route("/refresh").post(refreshSession);
+router.route("/logout").post(logout);
 router.route("/profile").get(getCurrentUser);
 router.route("/profile").put(updateProfile);
 router.route("/profile").delete(deleteAccount);
