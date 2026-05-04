@@ -1,7 +1,7 @@
 import httpStatus from "http-status";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { Meeting } from "../models/meeting.model.js";
 import { ChatMessage } from "../models/chatMessage.model.js";
 import { FriendRequest } from "../models/friendRequest.model.js";
@@ -12,59 +12,6 @@ const getErrorMessage = (error) => {
     if (!error) return "Unknown error";
     if (typeof error === "string") return error;
     return error.message || "Unknown error";
-};
-
-const JWT_SECRET = process.env.JWT_SECRET || "smartcon-dev-jwt-secret-change-in-production";
-const ACCESS_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "15m";
-const REFRESH_EXPIRES = process.env.JWT_REFRESH_EXPIRES || "7d";
-const REFRESH_COOKIE = "smartcon_refresh";
-
-const isProd = process.env.NODE_ENV === "production";
-
-const refreshCookieOptions = () => ({
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "none" : "lax",
-    path: "/api/v1/users",
-    maxAge: 7 * 24 * 60 * 60 * 1000
-});
-
-const setRefreshCookie = (res, refreshToken) => {
-    res.cookie(REFRESH_COOKIE, refreshToken, refreshCookieOptions());
-};
-
-const clearRefreshCookie = (res) => {
-    res.clearCookie(REFRESH_COOKIE, {
-        path: "/api/v1/users",
-        httpOnly: true,
-        secure: isProd,
-        sameSite: isProd ? "none" : "lax"
-    });
-};
-
-const issueAccessToken = (userId, authVersion) =>
-    jwt.sign({ sub: String(userId), ver: authVersion, typ: "access" }, JWT_SECRET, { expiresIn: ACCESS_EXPIRES });
-
-const issueRefreshToken = (userId, authVersion) =>
-    jwt.sign({ sub: String(userId), ver: authVersion, typ: "refresh" }, JWT_SECRET, { expiresIn: REFRESH_EXPIRES });
-
-const resolveUserByAuthToken = async (rawToken) => {
-    if (!rawToken || typeof rawToken !== "string") {
-        return null;
-    }
-    try {
-        const decoded = jwt.verify(rawToken, JWT_SECRET);
-        if (decoded.typ !== "access") {
-            return null;
-        }
-        const user = await User.findById(decoded.sub);
-        if (!user || Number(user.authVersion ?? 0) !== Number(decoded.ver)) {
-            return null;
-        }
-        return user;
-    } catch {
-        return User.findOne({ token: rawToken });
-    }
 };
 
 const getTokenFromRequest = (req) => {
@@ -80,7 +27,7 @@ const getAuthUser = async (req) => {
         return { error: "Missing auth token", status: httpStatus.UNAUTHORIZED };
     }
 
-    const user = await resolveUserByAuthToken(token);
+    const user = await User.findOne({ token });
     if (!user) {
         return { error: "Invalid or expired token", status: httpStatus.UNAUTHORIZED };
     }
@@ -182,17 +129,12 @@ const login = async (req, res) => {
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
         if (isPasswordCorrect) {
-            const nextVer = Number(user.authVersion ?? 0) + 1;
-            user.authVersion = nextVer;
-            user.token = undefined;
+            const token = crypto.randomBytes(20).toString("hex");
+
+            user.token = token;
             await user.save();
-
-            const accessToken = issueAccessToken(user._id, nextVer);
-            const refreshToken = issueRefreshToken(user._id, nextVer);
-            setRefreshCookie(res, refreshToken);
-
             return res.status(httpStatus.OK).json({
-                token: accessToken,
+                token,
                 user: await serializeUser(user)
             });
         }
@@ -333,75 +275,6 @@ const getCurrentUser = async (req, res) => {
             message: `Could not fetch profile: ${getErrorMessage(e)}`
         });
     }
-};
-
-const refreshSession = async (req, res) => {
-    try {
-        const raw = req.cookies?.[REFRESH_COOKIE];
-        if (!raw) {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Missing refresh session." });
-        }
-
-        const decoded = jwt.verify(raw, JWT_SECRET);
-        if (decoded.typ !== "refresh") {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid refresh session." });
-        }
-
-        const user = await User.findById(decoded.sub);
-        if (!user || Number(user.authVersion ?? 0) !== Number(decoded.ver)) {
-            clearRefreshCookie(res);
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid or expired refresh session." });
-        }
-
-        const accessToken = issueAccessToken(user._id, user.authVersion);
-        const newRefresh = issueRefreshToken(user._id, user.authVersion);
-        setRefreshCookie(res, newRefresh);
-
-        return res.status(httpStatus.OK).json({
-            token: accessToken,
-            user: await serializeUser(user)
-        });
-    } catch (e) {
-        clearRefreshCookie(res);
-        return res.status(httpStatus.UNAUTHORIZED).json({
-            message: `Could not refresh session: ${getErrorMessage(e)}`
-        });
-    }
-};
-
-const logout = async (req, res) => {
-    const rawRefresh = req.cookies?.[REFRESH_COOKIE];
-    try {
-        const auth = await getAuthUser(req);
-        if (!auth.error) {
-            auth.user.authVersion = Number(auth.user.authVersion ?? 0) + 1;
-            auth.user.token = undefined;
-            await auth.user.save();
-            clearRefreshCookie(res);
-            return res.status(httpStatus.OK).json({ message: "Logged out." });
-        }
-    } catch {
-        /* ignore */
-    }
-
-    if (rawRefresh) {
-        try {
-            const decoded = jwt.verify(rawRefresh, JWT_SECRET);
-            if (decoded.typ === "refresh" && decoded.sub) {
-                const user = await User.findById(decoded.sub);
-                if (user && Number(user.authVersion ?? 0) === Number(decoded.ver)) {
-                    user.authVersion = Number(user.authVersion ?? 0) + 1;
-                    user.token = undefined;
-                    await user.save();
-                }
-            }
-        } catch {
-            /* invalid refresh */
-        }
-    }
-
-    clearRefreshCookie(res);
-    return res.status(httpStatus.OK).json({ message: "Logged out." });
 };
 
 const updateAvatar = async (req, res) => {
@@ -696,7 +569,6 @@ const deleteAccount = async (req, res) => {
     try {
         const auth = await getAuthUser(req);
         if (auth.error) return res.status(auth.status).json({ message: auth.error });
-        clearRefreshCookie(res);
         await FriendRequest.deleteMany({ $or: [{ fromUserId: auth.user._id }, { toUserId: auth.user._id }] });
         await DirectMessage.deleteMany({ $or: [{ senderId: auth.user._id }, { receiverId: auth.user._id }] });
         await ChatMessage.deleteMany({ senderId: auth.user._id });
@@ -779,7 +651,7 @@ const saveChatMessage = async (payload) => {
         throw new Error("Missing token in chat payload.");
     }
 
-    const user = await resolveUserByAuthToken(token);
+    const user = await User.findOne({ token });
     if (!user) {
         throw new Error("Invalid chat token.");
     }
@@ -804,7 +676,7 @@ const saveDirectChatMessage = async (payload) => {
         throw new Error("Missing token or receiverId in direct message payload.");
     }
 
-    const sender = await resolveUserByAuthToken(token);
+    const sender = await User.findOne({ token });
     if (!sender) {
         throw new Error("Invalid chat token.");
     }
@@ -839,8 +711,6 @@ const saveDirectChatMessage = async (payload) => {
 export {
     login,
     register,
-    refreshSession,
-    logout,
     getUserHistory,
     addToHistory,
     clearUserHistory,

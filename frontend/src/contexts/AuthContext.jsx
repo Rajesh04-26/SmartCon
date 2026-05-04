@@ -1,6 +1,6 @@
 import axios from "axios";
 import httpStatus from "http-status";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import server from "../environment";
 
@@ -8,40 +8,8 @@ import server from "../environment";
 export const AuthContext = createContext({});
 
 const client = axios.create({
-    baseURL: `${server}/api/v1/users`,
-    withCredentials: true
+    baseURL: `${server}/api/v1/users`
 });
-
-client.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-        const original = error.config;
-        const status = error.response?.status;
-        const url = String(original?.url || "");
-        if (status !== httpStatus.UNAUTHORIZED || original?._retry) {
-            return Promise.reject(error);
-        }
-        if (url.includes("/login") || url.includes("/register") || url.includes("/refresh")) {
-            return Promise.reject(error);
-        }
-        original._retry = true;
-        try {
-            const refreshRes = await client.post("/refresh", {}, { withCredentials: true });
-            const nextToken = refreshRes.data?.token;
-            if (nextToken) {
-                localStorage.setItem("token", nextToken);
-            }
-            if (refreshRes.data?.user) {
-                localStorage.setItem("smartcon_user", JSON.stringify(refreshRes.data.user));
-            }
-            original.headers = original.headers || {};
-            original.headers.Authorization = `Bearer ${nextToken || localStorage.getItem("token") || ""}`;
-            return client(original);
-        } catch {
-            return Promise.reject(error);
-        }
-    }
-);
 
 const extractMessage = (error, fallback = "Something went wrong.") =>
     error?.response?.data?.message || error?.message || fallback;
@@ -57,24 +25,6 @@ export const AuthProvider = ({ children }) => {
         };
     });
     const router = useNavigate();
-
-    useEffect(() => {
-        if (localStorage.getItem("token")) return;
-        (async () => {
-            try {
-                const request = await client.post("/refresh", {}, { withCredentials: true });
-                if (request.status === httpStatus.OK && request.data?.token) {
-                    localStorage.setItem("token", request.data.token);
-                }
-                if (request.data?.user) {
-                    localStorage.setItem("smartcon_user", JSON.stringify(request.data.user));
-                    setUserData({ token: request.data.token || "", user: request.data.user });
-                }
-            } catch {
-                /* no refresh cookie */
-            }
-        })();
-    }, []);
 
     const authHeader = () => ({
         headers: {
@@ -95,7 +45,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleLogin = async (username, password) => {
         try {
-            const request = await client.post("/login", { username, password }, { withCredentials: true });
+            const request = await client.post("/login", { username, password });
 
             if (request.status === httpStatus.OK) {
                 localStorage.setItem("token", request.data.token);
@@ -301,12 +251,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = async () => {
-        try {
-            await client.post("/logout", {}, { ...authHeader(), withCredentials: true });
-        } catch {
-            /* still clear client session */
-        }
+    const logout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("smartcon_user");
         setUserData({ token: "", user: null });
