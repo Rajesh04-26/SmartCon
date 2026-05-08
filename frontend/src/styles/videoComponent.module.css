@@ -17,12 +17,15 @@ body {
 /* =========================================
    2. MAIN CONTAINER
    ========================================= */
+/* Active call: always a dark “theater” so video overlays stay white/readable in every theme (incl. light). */
 .meetVideoContainer {
   position: relative;
   height: 100vh;
   width: 100vw;
-  background: var(--page-bg);
+  background: #020617;
   overflow: hidden;
+  --meet-on-video: #f8fafc;
+  --meet-on-video-muted: rgba(248, 250, 252, 0.9);
 }
 
 /* =========================================
@@ -44,7 +47,7 @@ body {
 .conferenceViewGrid {
   position: fixed;
   inset: 0;
-  background: var(--bg-dark);
+  background: #000000;
   z-index: 1;
 }
 
@@ -116,12 +119,13 @@ body {
   position: absolute;
   left: 8px;
   bottom: 8px;
-  color: var(--text-main);
+  color: #ffffff;
   font-size: 0.85rem;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
   padding: 4px 8px;
   border-radius: 999px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .participantReactionStack {
@@ -140,7 +144,7 @@ body {
   gap: 6px;
   background: rgba(0, 0, 0, 0.66);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-main);
+  color: #ffffff;
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 0.95rem;
@@ -149,7 +153,8 @@ body {
 
 .participantReactionBubble small {
   font-size: 0.75rem;
-  color: #e5e7eb;
+  color: #f1f5f9;
+  font-weight: 600;
 }
 
 .conferenceView video {
@@ -258,8 +263,8 @@ body {
   right: 0;
   height: 100%;
   width: 350px;
-  background-color: var(--surface-strong);
-  color: var(--text-main);
+  background-color: rgba(15, 23, 42, 0.96);
+  color: #f1f5f9;
 
   z-index: 2000;
 
@@ -284,6 +289,23 @@ body {
   flex-direction: column;
   padding: 20px;
   height: 100%;
+}
+
+.meetVideoContainer .chatContainer h1 {
+  color: #f8fafc;
+  font-size: 1.25rem;
+}
+
+.meetVideoContainer .chattingDisplay > div > p:first-of-type {
+  color: #ffffff;
+}
+
+.meetVideoContainer .chattingDisplay > div > p:last-of-type {
+  color: #e2e8f0;
+}
+
+.meetVideoContainer .chattingDisplay > p {
+  color: #cbd5e1;
 }
 
 .chattingDisplay {
@@ -494,16 +516,19 @@ body {
   top: 22px;
   right: 22px;
   width: min(360px, 92vw);
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid var(--glass-border);
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 14px;
   padding: 12px;
   z-index: 1200;
+  color: #f8fafc;
 }
 
 .pendingJoinPanel h3 {
   margin: 0 0 10px 0;
   font-size: 0.95rem;
+  color: #f8fafc;
+  font-weight: 700;
 }
 
 .pendingJoinItem {
@@ -517,6 +542,8 @@ body {
 
 .pendingJoinItem span {
   font-size: 0.88rem;
+  color: #f1f5f9;
+  font-weight: 600;
 }
 
 .shareToast {
@@ -525,8 +552,8 @@ body {
   left: 50%;
   transform: translateX(-50%);
   background: rgba(2, 6, 23, 0.88);
-  border: 1px solid var(--glass-border);
-  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
   border-radius: 999px;
   padding: 8px 14px;
   z-index: 1150;
@@ -572,7 +599,8 @@ body {
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--surface-soft);
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     padding: 10px 15px;
     border-radius: 25px;
     display: flex;
@@ -580,6 +608,7 @@ body {
     z-index: 999;
     max-width: min(92vw, 650px);
     overflow-x: auto;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
 }
 
 .reactionPopup span {
@@ -607,7 +636,7 @@ body {
   gap: 10px;
   background: rgba(2, 6, 23, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.24);
-  color: var(--text-main);
+  color: #f8fafc;
   border-radius: 999px;
   padding: 10px 16px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
@@ -623,6 +652,8 @@ body {
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.2px;
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
 }
 
 @keyframes reactionPop {

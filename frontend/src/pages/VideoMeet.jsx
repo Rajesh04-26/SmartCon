@@ -637,7 +637,18 @@ let sendRaiseHand = () => {
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 fullWidth
-                InputProps={{ style: { color: "white" } }}
+                sx={{
+                    input: { color: "var(--text-main)" },
+                    label: { color: "var(--text-muted)" },
+                    "& label.Mui-focused": { color: "var(--accent)" },
+                    "& .MuiOutlinedInput-root": {
+                        backgroundColor: "var(--surface-soft)",
+                        borderRadius: "14px",
+                        "& fieldset": { borderColor: "var(--glass-border)" },
+                        "&:hover fieldset": { borderColor: "var(--primary)" },
+                        "&.Mui-focused fieldset": { borderColor: "var(--accent)" }
+                    }
+                }}
             />
 
             <Button
